@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MP3 Audio Player</title>
+
+<style>
+    body{
+        font-family: Arial, sans-serif;
+        background:#f0f0f0;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        height:100vh;
+        margin:0;
+    }
+
+    .player{
+        background:white;
+        padding:20px;
+        border-radius:10px;
+        width:420px;
+        box-shadow:0 0 10px rgba(0,0,0,0.2);
+    }
+
+    .menu-bar{
+        background:#ddd;
+        padding:8px;
+        border-radius:5px;
+        margin-bottom:15px;
+    }
+
+    .menu-bar button{
+        margin-right:10px;
+        padding:6px 12px;
+        cursor:pointer;
+    }
+
+    .controls{
+        margin-top:20px;
+        text-align:center;
+    }
+
+    .controls button{
+        padding:10px 20px;
+        margin:5px;
+        font-size:16px;
+        cursor:pointer;
+    }
+
+    #fileName{
+        margin-top:15px;
+        font-weight:bold;
+        color:#333;
+        word-break:break-word;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="player">
+
+    <!-- FILE MENU -->
+    <div class="menu-bar">
+        <button onclick="openFile()">Open / Load</button>
+        <button onclick="saveAs()">Save As</button>
+    </div>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="fileInput" accept=".mp3,audio/mp3" style="display:none">
+
+    <!-- Audio Element -->
+    <audio id="audioPlayer"></audio>
+
+    <!-- File Name -->
+    <div id="fileName">No MP3 Loaded</div>
+
+    <!-- AUDIO CONTROLS -->
+    <div class="controls">
+        <button onclick="playAudio()">PLAY</button>
+        <button onclick="pauseAudio()">PAUSE</button>
+        <button onclick="stopAudio()">STOP</button>
+    </div>
+
+</div>
+
+<script>
+
+const fileInput = document.getElementById('fileInput');
+const audioPlayer = document.getElementById('audioPlayer');
+const fileName = document.getElementById('fileName');
+
+let currentFileURL = null;
+
+// OPEN / LOAD
+function openFile() {
+    fileInput.click();
+}
+
+fileInput.addEventListener('change', function(event) {
+
+    const file = event.target.files[0];
+
+    if(file) {
+
+        if(currentFileURL){
+            URL.revokeObjectURL(currentFileURL);
+        }
+
+        currentFileURL = URL.createObjectURL(file);
+
+        audioPlayer.src = currentFileURL;
+
+        fileName.textContent = "Loaded: " + file.name;
+    }
+});
+
+// SAVE AS
+function saveAs() {
+
+    if(!audioPlayer.src){
+        alert("No MP3 file loaded.");
+        return;
+    }
+
+    const link = document.createElement('a');
+    link.href = audioPlayer.src;
+    link.download = "audio.mp3";
+    link.click();
+}
+
+// PLAY
+function playAudio() {
+    audioPlayer.play();
+}
+
+// PAUSE
+function pauseAudio() {
+    audioPlayer.pause();
+}
+
+// STOP
+function stopAudio() {
+    audioPlayer.pause();
+    audioPlayer.currentTime = 0;
+}
+
+</script>
+
+</body>
+</html>

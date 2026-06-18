@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Draw</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f0f11;
+    --surface:   #1a1a1f;
+    --border:    #2c2c35;
+    --accent:    #e8ff47;
+    --accent2:   #47c8ff;
+    --text:      #e8e8ec;
+    --muted:     #6b6b7a;
+    --canvas-bg: #18181d;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── MENU BAR ── */
+  #menubar {
+    height: 38px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 4px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 100;
+  }
+
+  .app-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--accent);
+    margin-right: 10px;
+  }
+
+  .menu-btn {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.12s;
+  }
+  .menu-btn:hover, .menu-btn.open { background: rgba(255,255,255,0.07); }
+
+  /* ── DROPDOWN ── */
+  #file-dropdown {
+    display: none;
+    position: fixed;
+    top: 38px;
+    left: 60px;
+    background: #22222a;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    min-width: 170px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+    z-index: 9999;
+  }
+  #file-dropdown.visible { display: block; }
+
+  .dropdown-item {
+    padding: 10px 16px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+  .dropdown-item:hover { background: rgba(255,255,255,0.09); color: var(--accent); }
+  .dropdown-item .shortcut { color: var(--muted); font-size: 11px; }
+  .dropdown-sep { height: 1px; background: var(--border); }
+
+  /* ── MAIN ── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── TOOLBAR ── */
+  #toolbar {
+    width: 60px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .tool-btn {
+    width: 42px; height: 42px;
+    background: none;
+    border: 1.5px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+    position: relative;
+  }
+  .tool-btn svg { width: 20px; height: 20px; stroke: var(--muted); fill: none; stroke-width: 1.8; transition: stroke 0.12s; }
+  .tool-btn:hover { background: rgba(255,255,255,0.05); }
+  .tool-btn:hover svg { stroke: var(--text); }
+  .tool-btn.active { background: rgba(232,255,71,0.1); border-color: var(--accent); }
+  .tool-btn.active svg { stroke: var(--accent); }
+  .tool-sep { width: 28px; height: 1px; background: var(--border); margin: 4px 0; }
+
+  .tool-btn::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%; transform: translateY(-50%);
+    background: #2a2a32;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 200;
+  }
+  .tool-btn:hover::after { opacity: 1; }
+
+  /* ── PROPERTIES ── */
+  #props {
+    width: 180px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  .prop-section label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .color-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .color-swatch {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.12s, transform 0.12s;
+    flex-shrink: 0;
+  }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.selected { border-color: white; }
+
+  #custom-color {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px dashed var(--border);
+    cursor: pointer;
+    padding: 0;
+    background: none;
+    overflow: hidden;
+  }
+  #custom-color::-webkit-color-swatch-wrapper { padding: 0; }
+  #custom-color::-webkit-color-swatch { border: none; border-radius: 50%; }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%; height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  .range-row { display: flex; align-items: center; gap: 8px; }
+  .range-val { font-size: 11px; color: var(--muted); min-width: 24px; text-align: right; }
+
+  #text-input-wrap, #font-size-wrap { display: none; }
+  #text-input-wrap.visible, #font-size-wrap.visible { display: block; }
+
+  #text-content {
+    width: 100%;
+    background: var(--canvas-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 6px 8px;
+    resize: vertical;
+    min-height: 60px;
+    outline: none;
+    user-select: text;
+  }
+  #text-content:focus { border-color: var(--accent2); }
+
+  /* ── CANVAS ── */
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--canvas-bg);
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  #main-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
+  #main-canvas.text-mode { cursor: text; }
+
+  /* ── STATUS BAR ── */
+  #statusbar {
+    height: 26px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 20px;
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  /* ── MODAL OVERLAY ── */
+  #modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  }
+  #modal-overlay.visible { display: flex; }
+
+  .modal {
+    background: #22222a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    min-width: 320px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .modal h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .modal p { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  .modal input[type=text] {
+    width: 100%;
+    background: var(--canvas-bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    user-select: text;
+  }
+  .modal input[type=text]:focus { border-color: var(--accent2); }
+
+  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+
+  .btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 8px 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text);
+    transition: background 0.12s;
+  }
+  .btn:hover { background: rgba(255,255,255,0.07); }
+  .btn.primary {
+    background: var(--accent);
+    color: #0f0f11;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+  .btn.primary:hover { background: #d4eb30; }
+  .btn.danger { border-color: #ff6b6b; color: #ff6b6b; }
+  .btn.danger:hover { background: rgba(255,107,107,0.1); }
+
+  /* save-as preview */
+  #save-preview {
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    max-width: 100%;
+    image-rendering: pixelated;
+  }
+
+  #file-open { display: none; }
+
+  #drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  #drop-zone:hover, #drop-zone.dragover {
+    border-color: var(--accent2);
+    background: rgba(71,200,255,0.05);
+    color: var(--text);
+  }
+  #drop-zone strong { display: block; font-size: 15px; color: var(--text); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<!-- MENU BAR -->
+<div id="menubar">
+  <span class="app-name">DRAW</span>
+  <button class="menu-btn" id="file-menu-btn">File</button>
+</div>
+
+<!-- DROPDOWN (outside menubar so no z-index fights) -->
+<div id="file-dropdown">
+  <div class="dropdown-item" id="mi-new"><span>New</span><span class="shortcut">Ctrl+N</span></div>
+  <div class="dropdown-sep"></div>
+  <div class="dropdown-item" id="mi-open"><span>Open…</span><span class="shortcut">Ctrl+O</span></div>
+  <div class="dropdown-sep"></div>
+  <div class="dropdown-item" id="mi-saveas"><span>Save As…</span><span class="shortcut">Ctrl+S</span></div>
+</div>
+
+<div id="main">
+
+  <!-- TOOLBAR -->
+  <div id="toolbar">
+    <button class="tool-btn active" data-tool="line" data-tip="Line (L)">
+      <svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+    </button>
+    <button class="tool-btn" data-tool="circle" data-tip="Circle (C)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
+    </button>
+    <button class="tool-btn" data-tool="square" data-tip="Rectangle (R)">
+      <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/></svg>
+    </button>
+    <button class="tool-btn" data-tool="text" data-tip="Text (T)">
+      <svg viewBox="0 0 24 24" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="12" y1="7" x2="12" y2="20"/></svg>
+    </button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" data-tool="clear" data-tip="Clear canvas">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-1 14H6L5 6"/>
+        <path d="M10 11v6M14 11v6"/>
+        <path d="M9 6V4h6v2"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- PROPERTIES -->
+  <div id="props">
+    <div class="prop-section">
+      <label>Color</label>
+      <div class="color-row">
+        <div class="color-swatch selected" style="background:#e8ff47" data-color="#e8ff47"></div>
+        <div class="color-swatch" style="background:#47c8ff" data-color="#47c8ff"></div>
+        <div class="color-swatch" style="background:#ff6b6b" data-color="#ff6b6b"></div>
+        <div class="color-swatch" style="background:#c8ff47" data-color="#c8ff47"></div>
+        <div class="color-swatch" style="background:#ff47c8" data-color="#ff47c8"></div>
+        <div class="color-swatch" style="background:#ffffff" data-color="#ffffff"></div>
+        <div class="color-swatch" style="background:#888" data-color="#888888"></div>
+        <input type="color" id="custom-color" value="#e8ff47" title="Custom color">
+      </div>
+    </div>
+
+    <div class="prop-section">
+      <label>Stroke Width</label>
+      <div class="range-row">
+        <input type="range" id="stroke-width" min="1" max="20" value="2">
+        <span class="range-val" id="stroke-val">2</span>
+      </div>
+    </div>
+
+    <div class="prop-section" id="font-size-wrap">
+      <label>Font Size</label>
+      <div class="range-row">
+        <input type="range" id="font-size" min="10" max="80" value="20">
+        <span class="range-val" id="font-val">20</span>
+      </div>
+    </div>
+
+    <div class="prop-section" id="text-input-wrap">
+      <label>Text Content</label>
+      <textarea id="text-content" rows="3" placeholder="Type here…"></textarea>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <canvas id="main-canvas"></canvas>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <span id="stat-tool">Tool: Line</span>
+  <span id="stat-pos">0, 0</span>
+  <span id="stat-count">Objects: 0</span>
+</div>
+
+<!-- MODAL OVERLAY -->
+<div id="modal-overlay">
+  <!-- NEW modal -->
+  <div class="modal" id="modal-new">
+    <h3>New Drawing</h3>
+    <p>Start a new drawing? All unsaved work will be lost.</p>
+    <div class="modal-btns">
+      <button class="btn" id="new-cancel">Cancel</button>
+      <button class="btn danger" id="new-confirm">Clear & New</button>
+    </div>
+  </div>
+
+  <!-- OPEN modal -->
+  <div class="modal" id="modal-open" style="display:none">
+    <h3>Open Image</h3>
+    <div id="drop-zone">
+      <strong>Click to choose a file</strong>
+      or drag &amp; drop here<br>
+      <span>PNG, JPG, GIF, WebP</span>
+    </div>
+    <input type="file" id="file-open" accept="image/*" style="display:none">
+    <div class="modal-btns">
+      <button class="btn" id="open-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- SAVE AS modal -->
+  <div class="modal" id="modal-saveas" style="display:none">
+    <h3>Save As PNG</h3>
+    <canvas id="save-preview" width="280" height="160"></canvas>
+    <input type="text" id="save-filename" value="drawing" placeholder="File name">
+    <div class="modal-btns">
+      <button class="btn" id="saveas-cancel">Cancel</button>
+      <button class="btn primary" id="saveas-confirm">⬇ Download PNG</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+(() => {
+  const canvas  = document.getElementById('main-canvas');
+  const ctx     = canvas.getContext('2d');
+  const wrap    = document.getElementById('canvas-wrap');
+
+  let tool = 'line', color = '#e8ff47', strokeWidth = 2, fontSize = 20;
+  let drawing = false, startX = 0, startY = 0;
+  let objects = [], snapshot = null;
+
+  // ── Resize ──
+  function resizeCanvas() {
+    canvas.width  = wrap.clientWidth;
+    canvas.height = wrap.clientHeight;
+    redrawAll();
+  }
+  new ResizeObserver(resizeCanvas).observe(wrap);
+
+  // ── Render ──
+  function redrawAll() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    objects.forEach(o => drawShape(ctx, o));
+  }
+
+  function drawShape(c, o, alpha) {
+    c.save();
+    if (alpha != null) c.globalAlpha = alpha;
+    c.strokeStyle = o.color;
+    c.fillStyle   = o.color;
+    c.lineWidth   = o.strokeWidth;
+    c.lineCap     = 'round';
+    c.lineJoin    = 'round';
+    switch (o.type) {
+      case 'line':
+        c.beginPath(); c.moveTo(o.x1, o.y1); c.lineTo(o.x2, o.y2); c.stroke(); break;
+      case 'circle': {
+        const rx = Math.abs(o.x2 - o.x1) / 2, ry = Math.abs(o.y2 - o.y1) / 2;
+        c.beginPath();
+        c.ellipse((o.x1+o.x2)/2, (o.y1+o.y2)/2, rx||1, ry||1, 0, 0, Math.PI*2);
+        c.stroke(); break;
+      }
+      case 'square':
+        c.strokeRect(o.x1, o.y1, o.x2-o.x1, o.y2-o.y1); break;
+      case 'text':
+        c.font = `${o.fontSize}px 'DM Mono', monospace`;
+        o.text.split('\n').forEach((line, i) =>
+          c.fillText(line, o.x1, o.y1 + i * o.fontSize * 1.25));
+        break;
+    }
+    c.restore();
+  }
+
+  // ── Canvas mouse ──
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  canvas.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const {x,y} = getPos(e);
+    if (tool === 'text') {
+      const txt = document.getElementById('text-content').value.trim();
+      if (!txt) return;
+      objects.push({ type:'text', color, strokeWidth, fontSize, x1:x, y1:y, text:txt });
+      redrawAll(); updateCount(); return;
+    }
+    drawing = true; startX = x; startY = y;
+    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    const {x,y} = getPos(e);
+    document.getElementById('stat-pos').textContent = `${Math.round(x)}, ${Math.round(y)}`;
+    if (!drawing) return;
+    ctx.putImageData(snapshot, 0, 0);
+    drawShape(ctx, { type:tool, color, strokeWidth, fontSize,
+      x1:startX, y1:startY, x2:x, y2:y, text:'' }, 0.8);
+  });
+
+  canvas.addEventListener('mouseup', e => {
+    if (!drawing) return;
+    drawing = false;
+    const {x,y} = getPos(e);
+    if (x === startX && y === startY) { ctx.putImageData(snapshot,0,0); return; }
+    objects.push({ type:tool, color, strokeWidth, fontSize,
+      x1:startX, y1:startY, x2:x, y2:y });
+    redrawAll(); updateCount();
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    if (drawing) { drawing = false; redrawAll(); }
+  });
+
+  function updateCount() {
+    document.getElementById('stat-count').textContent = `Objects: ${objects.length}`;
+  }
+
+  // ── Tools ──
+  document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.tool;
+      if (t === 'clear') { showModal('new'); return; }
+      tool = t;
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('stat-tool').textContent =
+        'Tool: ' + t.charAt(0).toUpperCase() + t.slice(1);
+      document.getElementById('text-input-wrap').classList.toggle('visible', t === 'text');
+      document.getElementById('font-size-wrap').classList.toggle('visible', t === 'text');
+      canvas.className = t === 'text' ? 'text-mode' : '';
+    });
+  });
+
+  // ── Colors ──
+  document.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      color = sw.dataset.color;
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+      sw.classList.add('selected');
+      document.getElementById('custom-color').value = color;
+    });
+  });
+  document.getElementById('custom-color').addEventListener('input', e => {
+    color = e.target.value;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  });
+
+  // ── Stroke / Font ──
+  const swRange = document.getElementById('stroke-width');
+  swRange.addEventListener('input', () => {
+    strokeWidth = +swRange.value;
+    document.getElementById('stroke-val').textContent = strokeWidth;
+  });
+  const fsRange = document.getElementById('font-size');
+  fsRange.addEventListener('input', () => {
+    fontSize = +fsRange.value;
+    document.getElementById('font-val').textContent = fontSize;
+  });
+
+  // ── DROPDOWN MENU ──
+  const fileMenuBtn = document.getElementById('file-menu-btn');
+  const fileDD      = document.getElementById('file-dropdown');
+  let ddOpen = false;
+
+  function openDD() {
+    const r = fileMenuBtn.getBoundingClientRect();
+    fileDD.style.left = r.left + 'px';
+    fileDD.style.top  = r.bottom + 'px';
+    fileDD.classList.add('visible');
+    fileMenuBtn.classList.add('open');
+    ddOpen = true;
+  }
+  function closeDD() {
+    fileDD.classList.remove('visible');
+    fileMenuBtn.classList.remove('open');
+    ddOpen = false;
+  }
+
+  fileMenuBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    ddOpen ? closeDD() : openDD();
+  });
+
+  // Close on outside click
+  document.addEventListener('click', e => {
+    if (ddOpen && !fileDD.contains(e.target)) closeDD();
+  });
+
+  // Menu items
+  document.getElementById('mi-new').addEventListener('click', () => {
+    closeDD(); showModal('new');
+  });
+  document.getElementById('mi-open').addEventListener('click', () => {
+    closeDD(); showModal('open');
+  });
+  document.getElementById('mi-saveas').addEventListener('click', () => {
+    closeDD(); showSaveAs();
+  });
+
+  // ── MODALS ──
+  const overlay   = document.getElementById('modal-overlay');
+  const modalNew  = document.getElementById('modal-new');
+  const modalSave = document.getElementById('modal-saveas');
+
+  function showModal(which) {
+    modalNew.style.display  = which === 'new'    ? '' : 'none';
+    modalOpen.style.display = which === 'open'   ? '' : 'none';
+    modalSave.style.display = which === 'saveas' ? '' : 'none';
+    overlay.classList.add('visible');
+  }
+  function hideModal() { overlay.classList.remove('visible'); }
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) hideModal(); });
+
+  // NEW modal
+  document.getElementById('new-cancel').addEventListener('click', hideModal);
+  document.getElementById('new-confirm').addEventListener('click', () => {
+    objects = []; redrawAll(); updateCount(); hideModal();
+  });
+
+  // SAVE AS modal
+  function showSaveAs() {
+    // Render preview
+    const prev = document.getElementById('save-preview');
+    const pc   = prev.getContext('2d');
+    const scale = Math.min(prev.width / canvas.width, prev.height / canvas.height);
+    pc.fillStyle = '#18181d';
+    pc.fillRect(0, 0, prev.width, prev.height);
+    pc.save();
+    pc.scale(scale, scale);
+    objects.forEach(o => drawShape(pc, o));
+    pc.restore();
+    showModal('saveas');
+    setTimeout(() => document.getElementById('save-filename').focus(), 50);
+  }
+
+  document.getElementById('saveas-cancel').addEventListener('click', hideModal);
+
+  document.getElementById('saveas-confirm').addEventListener('click', () => {
+    const name = document.getElementById('save-filename').value.trim() || 'drawing';
+
+    // Offscreen canvas with background
+    const off  = document.createElement('canvas');
+    off.width  = canvas.width;
+    off.height = canvas.height;
+    const oc   = off.getContext('2d');
+    oc.fillStyle = '#18181d';
+    oc.fillRect(0, 0, off.width, off.height);
+    objects.forEach(o => drawShape(oc, o));
+
+    // Download via data URL (works in all contexts including sandboxed iframes)
+    const dataURL = off.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href     = dataURL;
+    a.download = name + '.png';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    hideModal();
+  });
+
+  // ── OPEN modal ──
+  const dropZone  = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-open');
+  const modalOpen = document.getElementById('modal-open');
+
+  document.getElementById('open-cancel').addEventListener('click', hideModal);
+
+  function loadImageFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        objects = [];
+        redrawAll();
+        const scale = Math.min(canvas.width / img.width, canvas.height / img.height, 1);
+        const w = img.width * scale, h = img.height * scale;
+        const x = (canvas.width - w) / 2, y = (canvas.height - h) / 2;
+        ctx.drawImage(img, x, y, w, h);
+        updateCount();
+        hideModal();
+      };
+      img.src = ev.target.result; // base64 data URL — works everywhere
+    };
+    reader.readAsDataURL(file);
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    e.target.value = ''; // reset after grabbing the file reference
+    loadImageFile(file);
+  });
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    loadImageFile(e.dataTransfer.files[0]);
+  });
+
+  // ── KEYBOARD SHORTCUTS ──
+  document.addEventListener('keydown', e => {
+    const tag = document.activeElement.tagName;
+    if (tag === 'TEXTAREA' || tag === 'INPUT') return;
+    if (overlay.classList.contains('visible')) return;
+
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'n') { e.preventDefault(); showModal('new'); }
+      if (e.key === 'o') { e.preventDefault(); showModal('open'); }
+      if (e.key === 's') { e.preventDefault(); showSaveAs(); }
+      return;
+    }
+    const map = { l:'line', c:'circle', r:'square', t:'text' };
+    if (map[e.key]) document.querySelector(`.tool-btn[data-tool="${map[e.key]}"]`).click();
+  });
+
+})();
+</script>
+</body>
+</html>

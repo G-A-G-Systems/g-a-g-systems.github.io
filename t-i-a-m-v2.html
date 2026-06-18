@@ -1,0 +1,199 @@
+<html>
+
+<head>
+<style>
+
+canvas {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 10px;
+    background-color: #f0f0f0;
+}
+
+
+    
+    /*
+    button {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+}
+*/
+
+</style>
+ 
+
+
+</head>
+
+
+<body>
+
+<table width="100%" height="100%" cellpadding="10" cellspacing="0">
+    <tr>
+        <td bgcolor="lightgrey">
+
+<center>
+<font size="7"> Tiny Image/Photo AD Maker v2 </font><br>
+    By George A Georgopoulos<br><br><br>
+<!-- Copyright G A Georgopoulos, All Rights Reserved -->
+
+
+    
+
+<!-- Container for our elements -->
+<div style="text-align: center;">
+    <canvas id="myCanvas" width="500" height="300" style="border:1px solid #ccc;"></canvas>
+    <br>
+    <!-- <button id="downloadBtn">Save to Downloads</button> -->
+</div>
+
+
+<!-- <canvas id="myCanvas" width="500" height="300" style="border:1px solid #000;"></canvas> -->
+
+    
+ <center> 
+  <br> 
+    
+    
+Enter Text:<input size="60" type='text' id="100"/>
+<br>
+
+Enter Color:<input  type='text' id="101"/> (Type: White or Black or Red or Green or Blue)
+<br>
+
+Enter Text Size:<input  type='text' id="102"/> (Type: 20px or 40px or 60px or 80px or 100px )
+<br>
+ <br>
+
+
+     <button onclick="placetextonimage()">Place Text On Image/Photo</button>
+     
+     <br><br>
+<input type="file" onchange="loadAndDrawImage(this)" accept="image/*">
+
+     <button onclick="downloadCanvasImage()">Save / Download Image</button> <a href="t-i-a-m-v2.html"> <button>New</button> </a>
+  </center>  
+
+
+ <br><br>
+ <b>INSTRUCTIONS<br><br></b>
+
+            1) It Places AD TEXT on any image(jpg/png/webp) and Saves it<br>
+            Examples<br>
+            ------------<br>
+            a) GGA AUDIO<br>
+            b) 20% OFF<br>
+            c) Price:$100<br>
+               
+
+<br><br><br><br>
+ <b>DISCLAIMER<br><br></b>
+No responsibility assumed on any issue coming from this web program<br>
+
+<br><br><br><br>
+ <b>Copyright &copy; 2026,George A Georgopoulos, All Rights Reserved<br><br></b>
+
+            
+</td>
+</tr>
+</table>    
+
+
+
+<br><br>
+    <center>
+<font size="5">If you like this program and want to Use it, as your own<br>
+    <b>The COST/PRICE IS</b> 35 USD-DOLLAR/EURO <br> Send money by post<br>
+    to: George A Gergopoulos, AGIA MAVRA, TRAGANO ILIAS, GREECE<br><br>
+    To get registered, send me an email at: GeorgeGeorgopoulosAudio@Gmail.com
+    <br><br>
+    
+    THANK YOU SO MUCH!!!!</font>
+
+</center>
+
+
+
+
+
+
+
+
+
+
+    
+
+<script>
+    
+
+const canvas = document.getElementById('myCanvas');
+const ctx = canvas.getContext('2d');
+
+function loadAndDrawImage(input) {
+    const canvas = document.getElementById('myCanvas');
+    const ctx = canvas.getContext('2d');
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+
+function downloadCanvasImage() {
+    const canvas = document.getElementById('myCanvas');
+    const imageDataUrl = canvas.toDataURL('image/jpeg', 1.0);
+    const link = document.createElement('a');
+    link.download = 'my-canvas-image.jpg';
+    link.href = imageDataUrl;
+    link.click();
+}
+
+
+
+
+function placetextonimage() {    
+
+
+    var mytext = document.getElementById('100');    
+    var mycolor = document.getElementById('101');
+    var mysize = document.getElementById('102');
+
+    
+    // 3. Configure and draw the text on top
+    ctx.font = mysize.value +' ' + 'Arial';           // Set size and font family
+    //ctx.font = '40px Arial';           // Set size and font family    
+    
+    ctx.fillStyle = mycolor.value;          // Set text color
+    //ctx.fillStyle = 'red';          // Set text color    
+    
+    
+    ctx.textAlign = 'center';         // Center text horizontally
+    
+    // Draw the text (Text, X-coordinate, Y-coordinate)
+    ctx.fillText(mytext.value, canvas.width / 2, canvas.height / 2);
+    
+}
+
+
+
+    
+
+
+</script>
+
+
+
+</body>
+</html>

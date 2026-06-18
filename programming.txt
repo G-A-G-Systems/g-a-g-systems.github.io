@@ -1,0 +1,64 @@
+G A G SYSTEMS web os v1
+
+PROGRAMMING
+----------------------------------------------------------
+No OS System is complete without its Programming Languages
+
+G A G SYSTEMS web os v1,,Uses the following Languages:
+
+Scripting Languages
+-------------------
+1- HTML
+2- CSS
+3- JAVASCRIPT
+4- PHP
+5- MYSQL
+6- SQL
+
+As you may already know all these Languages are script/text
+intepretor code hat runs once loaded on Servers and
+Browsers,,and there is no need for Compilers and Linkers
+
+
+Enterprise,Compiler languages
+-----------------------------
+1- C++ (Powerful)
+2- JAVA (Powerful (JVM))
+
+Compiler/Compile to Binary or (JAVA (JVM-Code)) Languages need to be compiled to
+be able to Run on the computer and are Native OS operational,
+these two above work in Windows,Mac,Linux, etc,,,And can also
+do Web Programming
+
+Where To Start
+------------------------------------------------------------
+Learn the Languages First Before You Start Programming
+Bellow is a Free Web Languages Learning Resource Link:
+
+"https://www.w3schools.com/"
+
+
+
+What Other Things You must know before you Start
+------------------------------------------------------------
+
+"OBJECT ORIENTED PROGRAMMING"
+
+
+
+And Other Things You must know before you Start
+------------------------------------------------------------
+
+In Order of Learning 1)Libraries, 2)Frameworks, 3)API's, 4)SDK's
+
+
+
+
+To Be Continued Soon
+
+
+
+
+
+
+

@@ -1,0 +1,153 @@
+<html>
+
+<head>
+
+<style>
+
+body{
+    background-image:url('web-os1.png');
+    background-repeat:norepeat;
+    background-attachment:fixed;
+    background-size:100%,100%;
+    background-position:center;
+    }
+
+
+a{text-decoration:none; color:blue;}
+a:hover{color:red;}
+
+
+    
+</style>
+
+
+    
+</head>
+
+
+
+
+
+<body>
+
+
+ <font face="arial">   
+<table width="100%" height="100%" align="center" style="background-color:rgba(255,255,255,0.9);">
+<tr>
+<td width="50%" valign="top">
+<font size="7"><b>SETTINGS</b></font>
+    <br><br><br>
+Classic Desktop<a href="index-1.html" target="_blank"><button> Apply </button></a>
+    
+    <!-- Classic Desktop <button onclick="openNewWindow()">Apply</button> -->
+<br><br><br>
+
+Modern Desktop<a href="index-1b.html" target="_blank"><button> Apply </button></a>
+    
+<!-- Modern Desktop <button onclick="openNewWindow2()">Apply</button> -->
+
+
+    
+
+    
+</td>
+<td width="50%">
+
+
+
+</td>   
+</tr>
+</table>
+
+
+<script>
+
+
+
+    
+    
+let openedWindow;
+
+function openNewWindow() {
+  // Open a new window and store the reference
+  //openedWindow = window.open("index-1.html", "_blank", "width=400,height=300");
+    
+    
+ 
+    openedWindow = window.open("index-1.html", "_blank", width="100%",height="100%");
+
+}
+
+
+function openNewWindow2() {
+  // Open a new window and store the reference
+  //openedWindow = window.open("index-1.html", "_blank", "width=400,height=300");
+    
+    
+    openedWindow = window.open("index-1b.html", "_blank", width='100%',height='100%');
+
+
+}
+
+
+
+
+/*
+    
+function openMaximizedPopup(url) {
+    // Use screen.availWidth and screen.availHeight to approximate maximum size
+    const width = screen.availWidth;
+    const height = screen.availHeight;
+    const windowFeatures = `width=${width},height=${height},left=0,top=0,screenX=0,screenY=0`;
+
+    window.open("index-1.html", '_blank', windowFeatures);
+}
+
+
+
+
+function openMaximizedPopup2(url) {
+    
+    
+    
+    // Use screen.availWidth and screen.availHeight to approximate maximum size
+    const width = screen.availWidth;
+    const height = screen.availHeight;
+    const windowFeatures = `width=${width},height=${height},left=0,top=0,screenX=0,screenY=0`;
+
+openedWindow = window.open("index-1b.html", '_blank', windowFeatures);
+}
+
+
+*/
+
+
+
+
+    
+
+
+   
+
+    
+function closeOpenedWindow() {
+  // Check if the window reference exists and close it
+  if (openedWindow && !openedWindow.closed) {
+    openedWindow.close();
+  } else {
+    alert("Window is already closed or was not opened by script.");
+  }
+}
+
+
+
+
+
+</script>
+
+     
+
+
+
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Simple MP4 Video Player</title>
+
+<style>
+    body{
+        margin:0;
+        font-family:Arial, sans-serif;
+        background:#1e1e1e;
+        color:white;
+    }
+
+    /* MENU BAR */
+    .menu-bar{
+        background:#333;
+        padding:10px;
+        display:flex;
+        gap:10px;
+        border-bottom:2px solid #555;
+    }
+
+    .menu-button{
+        background:#444;
+        color:white;
+        border:none;
+        padding:8px 16px;
+        cursor:pointer;
+        font-size:14px;
+    }
+
+    .menu-button:hover{
+        background:#666;
+    }
+
+    /* PLAYER AREA */
+    .player-container{
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        margin-top:20px;
+    }
+
+    video{
+        width:80%;
+        max-width:900px;
+        background:black;
+        border:3px solid #555;
+    }
+
+    /* CONTROLS */
+    .controls{
+        margin-top:15px;
+        display:flex;
+        gap:10px;
+    }
+
+    .control-button{
+        background:#0078d7;
+        border:none;
+        color:white;
+        padding:10px 20px;
+        font-size:16px;
+        cursor:pointer;
+    }
+
+    .control-button:hover{
+        background:#3399ff;
+    }
+
+    input[type="file"]{
+        display:none;
+    }
+</style>
+</head>
+
+<body>
+
+<!-- MENU -->
+<div class="menu-bar">
+    <button class="menu-button" onclick="openVideo()">File - Open/Load</button>
+    <button class="menu-button" onclick="saveAs()">File - Save As</button>
+</div>
+
+<!-- HIDDEN FILE INPUT -->
+<input type="file" id="fileInput" accept=".mp4,video/mp4">
+
+<!-- VIDEO PLAYER -->
+<div class="player-container">
+
+    <video id="videoPlayer"></video>
+
+    <div class="controls">
+        <button class="control-button" onclick="playVideo()">PLAY</button>
+        <button class="control-button" onclick="stopVideo()">STOP</button>
+    </div>
+
+</div>
+
+<script>
+
+const videoPlayer = document.getElementById('videoPlayer');
+const fileInput = document.getElementById('fileInput');
+
+let currentVideoFile = null;
+
+/* OPEN VIDEO */
+function openVideo(){
+    fileInput.click();
+}
+
+fileInput.addEventListener('change', function(event){
+
+    const file = event.target.files[0];
+
+    if(file){
+        currentVideoFile = file;
+
+        const videoURL = URL.createObjectURL(file);
+
+        videoPlayer.src = videoURL;
+        videoPlayer.load();
+    }
+});
+
+/* PLAY */
+function playVideo(){
+    videoPlayer.play();
+}
+
+/* STOP */
+function stopVideo(){
+    videoPlayer.pause();
+    videoPlayer.currentTime = 0;
+}
+
+/* SAVE AS */
+function saveAs(){
+
+    if(!currentVideoFile){
+        alert("No video loaded.");
+        return;
+    }
+
+    const link = document.createElement('a');
+
+    link.href = URL.createObjectURL(currentVideoFile);
+    link.download = currentVideoFile.name;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+</script>
+
+</body>
+</html>

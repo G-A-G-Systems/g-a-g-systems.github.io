@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space Invaders</title>
+
+<style>
+body{
+    margin:0;
+    background:#000;
+    color:white;
+    font-family:Arial, sans-serif;
+    text-align:center;
+}
+
+#topbar{
+    padding:10px;
+    font-size:24px;
+}
+
+canvas{
+    background:black;
+    border:3px solid lime;
+    display:block;
+    margin:auto;
+}
+
+button{
+    margin-top:15px;
+    padding:10px 25px;
+    font-size:20px;
+    cursor:pointer;
+    display:none;
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+    Score: <span id="score">0</span>
+</div>
+
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+
+<button id="playAgainBtn">PLAY AGAIN</button>
+
+<script>
+
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+const scoreDisplay = document.getElementById("score");
+const playAgainBtn = document.getElementById("playAgainBtn");
+
+let score;
+let gameOver;
+let win;
+let alienDirection;
+
+let bullets = [];
+let aliens = [];
+
+const keys = {};
+
+const player = {
+    x:0,
+    y:0,
+    width:50,
+    height:20,
+    speed:6
+};
+
+document.addEventListener("keydown", (e)=>{
+
+    keys[e.code] = true;
+
+    if(e.code === "Space"){
+        shoot();
+    }
+});
+
+document.addEventListener("keyup",(e)=>{
+    keys[e.code] = false;
+});
+
+playAgainBtn.addEventListener("click", restartGame);
+
+function restartGame(){
+
+    score = 0;
+    gameOver = false;
+    win = false;
+
+    alienDirection = 1;
+
+    bullets = [];
+    aliens = [];
+
+    scoreDisplay.textContent = score;
+
+    player.x = canvas.width/2 - player.width/2;
+    player.y = canvas.height - 60;
+
+    const rows = 5;
+    const cols = 10;
+
+    for(let r=0;r<rows;r++){
+
+        for(let c=0;c<cols;c++){
+
+            aliens.push({
+                x:60 + c*65,
+                y:50 + r*50,
+                width:40,
+                height:25,
+                alive:true
+            });
+        }
+    }
+
+    playAgainBtn.style.display = "none";
+}
+
+function shoot(){
+
+    if(gameOver || win) return;
+
+    bullets.push({
+        x: player.x + player.width/2 - 2,
+        y: player.y,
+        width:4,
+        height:12,
+        speed:8
+    });
+}
+
+function updatePlayer(){
+
+    if(keys["ArrowLeft"]){
+        player.x -= player.speed;
+    }
+
+    if(keys["ArrowRight"]){
+        player.x += player.speed;
+    }
+
+    if(player.x < 0){
+        player.x = 0;
+    }
+
+    if(player.x + player.width > canvas.width){
+        player.x = canvas.width - player.width;
+    }
+}
+
+function updateBullets(){
+
+    for(let i=bullets.length-1;i>=0;i--){
+
+        bullets[i].y -= bullets[i].speed;
+
+        if(bullets[i].y < 0){
+            bullets.splice(i,1);
+        }
+    }
+}
+
+function updateAliens(){
+
+    let changeDirection = false;
+
+    for(const alien of aliens){
+
+        if(!alien.alive) continue;
+
+        alien.x += alienDirection;
+
+        if(alien.x <= 0 ||
+           alien.x + alien.width >= canvas.width){
+            changeDirection = true;
+        }
+    }
+
+    if(changeDirection){
+
+        alienDirection *= -1;
+
+        for(const alien of aliens){
+
+            if(!alien.alive) continue;
+
+            alien.y += 20;
+
+            if(alien.y + alien.height >= player.y){
+                gameOver = true;
+            }
+        }
+    }
+}
+
+function checkCollisions(){
+
+    for(let b=bullets.length-1;b>=0;b--){
+
+        const bullet = bullets[b];
+
+        for(const alien of aliens){
+
+            if(!alien.alive) continue;
+
+            if(
+                bullet.x < alien.x + alien.width &&
+                bullet.x + bullet.width > alien.x &&
+                bullet.y < alien.y + alien.height &&
+                bullet.y + bullet.height > alien.y
+            ){
+
+                alien.alive = false;
+
+                bullets.splice(b,1);
+
+                score += 10;
+
+                scoreDisplay.textContent = score;
+
+                break;
+            }
+        }
+    }
+
+    const remaining = aliens.filter(a => a.alive);
+
+    if(remaining.length === 0){
+        win = true;
+    }
+}
+
+function drawPlayer(){
+
+    ctx.fillStyle = "lime";
+
+    ctx.fillRect(
+        player.x,
+        player.y,
+        player.width,
+        player.height
+    );
+
+    ctx.fillRect(
+        player.x + 18,
+        player.y - 10,
+        14,
+        10
+    );
+}
+
+function drawBullets(){
+
+    ctx.fillStyle = "yellow";
+
+    bullets.forEach(b => {
+
+        ctx.fillRect(
+            b.x,
+            b.y,
+            b.width,
+            b.height
+        );
+    });
+}
+
+function drawAliens(){
+
+    ctx.fillStyle = "red";
+
+    aliens.forEach(alien => {
+
+        if(!alien.alive) return;
+
+        ctx.fillRect(
+            alien.x,
+            alien.y,
+            alien.width,
+            alien.height
+        );
+
+        ctx.fillRect(
+            alien.x + 5,
+            alien.y - 5,
+            8,
+            5
+        );
+
+        ctx.fillRect(
+            alien.x + 27,
+            alien.y - 5,
+            8,
+            5
+        );
+    });
+}
+
+function drawMessage(text){
+
+    ctx.fillStyle = "white";
+    ctx.font = "48px Arial";
+    ctx.textAlign = "center";
+
+    ctx.fillText(
+        text,
+        canvas.width/2,
+        canvas.height/2
+    );
+}
+
+function draw(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    drawPlayer();
+    drawBullets();
+    drawAliens();
+
+    if(gameOver){
+        drawMessage("GAME OVER");
+        playAgainBtn.style.display = "inline-block";
+    }
+
+    if(win){
+        drawMessage("YOU WIN!");
+        playAgainBtn.style.display = "inline-block";
+    }
+}
+
+function gameLoop(){
+
+    if(!gameOver && !win){
+
+        updatePlayer();
+        updateBullets();
+        updateAliens();
+        checkCollisions();
+    }
+
+    draw();
+
+    requestAnimationFrame(gameLoop);
+}
+
+restartGame();
+gameLoop();
+
+</script>
+
+</body>
+</html>

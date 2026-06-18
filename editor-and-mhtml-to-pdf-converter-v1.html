@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TextForge Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0e0d;
+    --surface: #1a1917;
+    --surface2: #242220;
+    --surface3: #2e2b28;
+    --border: #3a3733;
+    --accent: #e8c97a;
+    --text: #f0ebe3;
+    --text2: #a09890;
+    --text3: #6a6460;
+    --radius: 6px;
+    --toolbar-h: 54px;
+    --menubar-h: 38px;
+    --status-h: 28px;
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
+
+  /* ── MENU BAR ── */
+  #menubar {
+    height: var(--menubar-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 12px; gap: 2px;
+    position: relative; z-index: 100;
+    user-select: none;
+  }
+  .app-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px; color: var(--accent);
+    letter-spacing: 0.04em; margin-right: 16px; white-space: nowrap;
+  }
+  .menu-item { position: relative; }
+  .menu-btn {
+    background: none; border: none; color: var(--text2);
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    padding: 4px 10px; cursor: pointer;
+    border-radius: var(--radius);
+    transition: background 0.13s, color 0.13s; white-space: nowrap;
+  }
+  .menu-btn:hover, .menu-btn.open { background: var(--surface3); color: var(--text); }
+  .dropdown {
+    display: none; position: absolute;
+    top: calc(100% + 4px); left: 0;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); min-width: 210px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.55); z-index: 999; overflow: hidden;
+  }
+  .dropdown.open { display: block; }
+  .dd-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; font-size: 13px; color: var(--text2);
+    cursor: pointer; transition: background 0.1s, color 0.1s; white-space: nowrap;
+  }
+  .dd-item:hover { background: var(--surface3); color: var(--text); }
+  .dd-icon { font-size: 14px; width: 18px; text-align: center; opacity: 0.75; }
+  .dd-shortcut { margin-left: auto; font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+  .dd-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* ── TOOLBAR ── */
+  #toolbar {
+    height: var(--toolbar-h); background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 14px; gap: 4px;
+    flex-wrap: nowrap; overflow-x: auto; user-select: none;
+  }
+  #toolbar::-webkit-scrollbar { height: 0; }
+  .tb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 6px; flex-shrink: 0; }
+  .tb-btn {
+    background: none; border: 1px solid transparent; color: var(--text2);
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius); cursor: pointer;
+    font-size: 14px; font-weight: 700; font-family: 'DM Sans', sans-serif;
+    transition: all 0.12s; flex-shrink: 0; position: relative;
+  }
+  .tb-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--border); }
+  .tb-btn.active { background: var(--surface3); color: var(--accent); border-color: var(--accent); }
+  .tb-btn[data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 7px); left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); font-size: 11px; font-weight: 400;
+    padding: 3px 8px; border-radius: 4px; white-space: nowrap;
+    pointer-events: none; z-index: 300;
+  }
+  .tb-select {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 4px 8px;
+    border-radius: var(--radius); cursor: pointer; height: 32px;
+    outline: none; flex-shrink: 0; transition: border-color 0.12s;
+  }
+  .tb-select:focus, .tb-select:hover { border-color: var(--accent); }
+  .tb-select option { background: var(--surface2); }
+  .tb-size {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    width: 54px; height: 32px; padding: 0 8px;
+    border-radius: var(--radius); outline: none; text-align: center;
+    flex-shrink: 0; transition: border-color 0.12s;
+  }
+  .tb-size:focus { border-color: var(--accent); }
+
+  /* ── EDITOR ── */
+  #editor-wrap {
+    height: calc(100vh - var(--menubar-h) - var(--toolbar-h) - var(--status-h));
+    overflow-y: auto; background: var(--bg);
+    display: flex; justify-content: center; padding: 32px 24px;
+  }
+  #editor-wrap::-webkit-scrollbar { width: 6px; }
+  #editor-wrap::-webkit-scrollbar-track { background: transparent; }
+  #editor-wrap::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+  #editor {
+    width: 100%; max-width: 860px; min-height: 100%;
+    background: #1c1a18; border: 1px solid var(--border); border-radius: 8px;
+    padding: 56px 72px; outline: none;
+    font-family: 'DM Sans', sans-serif; font-size: 15px;
+    line-height: 1.75; color: var(--text); caret-color: var(--accent);
+    box-shadow: 0 4px 40px rgba(0,0,0,0.35); word-break: break-word;
+  }
+  #editor:empty::before { content: 'Start writing…'; color: var(--text3); pointer-events: none; }
+  #editor img {
+    max-width: 100%; border-radius: 4px; display: block; margin: 12px 0;
+    border: 2px solid transparent; cursor: pointer; transition: border-color 0.15s;
+  }
+  #editor img.img-sel { border-color: var(--accent); }
+
+  /* ── STATUS BAR ── */
+  #statusbar {
+    height: var(--status-h); background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 14px; gap: 20px;
+    font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace;
+  }
+  #statusbar span { white-space: nowrap; }
+  #status-msg { color: var(--accent); margin-left: auto; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65); z-index: 500;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 28px 32px;
+    min-width: 340px; max-width: 90vw;
+    box-shadow: 0 16px 60px rgba(0,0,0,0.6);
+  }
+  .modal h3 { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--accent); margin-bottom: 16px; }
+  .modal label { font-size: 12px; color: var(--text3); display: block; margin-bottom: 6px; }
+  .modal input[type=text] {
+    width: 100%; background: var(--surface3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 13px; padding: 8px 12px;
+    border-radius: var(--radius); outline: none; margin-bottom: 16px;
+  }
+  .modal input[type=text]:focus { border-color: var(--accent); }
+  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn { padding: 7px 18px; border-radius: var(--radius); font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; border: 1px solid transparent; transition: all 0.12s; }
+  .btn-primary { background: var(--accent); color: #0f0e0d; font-weight: 600; }
+  .btn-primary:hover { background: #f5d990; }
+  .btn-ghost { background: transparent; color: var(--text2); border-color: var(--border); }
+  .btn-ghost:hover { background: var(--surface3); color: var(--text); }
+
+  /* hidden file inputs */
+  #fileOpenInput, #imgInput { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ── MENU BAR ── -->
+<div id="menubar">
+  <div class="menu-item" id="mi-file">
+    <button class="menu-btn" onclick="toggleMenu('file')">File</button>
+    <div class="dropdown" id="dd-file">
+      <div class="dd-item" onclick="newDoc()">
+        <span class="dd-icon">📄</span>New<span class="dd-shortcut">Ctrl+N</span>
+      </div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" onclick="openFile()">
+        <span class="dd-icon">📂</span>Open MHTML…<span class="dd-shortcut">Ctrl+O</span>
+      </div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" onclick="promptSave()">
+        <span class="dd-icon">💾</span>Save As PDF…<span class="dd-shortcut">Ctrl+S</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-item" id="mi-insert">
+    <button class="menu-btn" onclick="toggleMenu('insert')">Insert</button>
+    <div class="dropdown" id="dd-insert">
+      <div class="dd-item" onclick="insertPicture()">
+        <span class="dd-icon">🖼️</span>Picture…
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOOLBAR ── -->
+<div id="toolbar">
+  <input type="number" class="tb-size" id="fontSize" value="15" min="6" max="200"
+         title="Font Size (px) — select text then change"
+         onmousedown="saveSelection()"
+         onchange="applyFontSize()"
+         onkeydown="if(event.key==='Enter'){applyFontSize();}">
+
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn" id="btn-bold"   data-tip="Bold (Ctrl+B)"   onclick="fmt('bold')"><b>B</b></button>
+  <button class="tb-btn" id="btn-italic" data-tip="Italic (Ctrl+I)" onclick="fmt('italic')"><i>I</i></button>
+
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn" data-tip="Insert Picture" onclick="insertPicture()" style="font-size:17px;">🖼️</button>
+</div>
+
+<!-- ── EDITOR ── -->
+<div id="editor-wrap">
+  <div id="editor" contenteditable="true" spellcheck="true"></div>
+</div>
+
+<!-- ── STATUS BAR ── -->
+<div id="statusbar">
+  <span id="stat-words">0 words</span>
+  <span id="stat-chars">0 chars</span>
+  <span id="status-msg"></span>
+</div>
+
+<!-- ── SAVE MODAL ── -->
+<div class="modal-overlay" id="saveModal">
+  <div class="modal">
+    <h3>Save As PDF</h3>
+    <label>File name (without extension)</label>
+    <input type="text" id="saveFilename" value="document" placeholder="my-document"/>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="doSave()">Save…</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden inputs — always present, always work (file:// and https://) -->
+<input type="file" id="fileOpenInput" accept=".mhtml,.mht,.html,.htm" onchange="loadFileFromInput(event)">
+<input type="file" id="imgInput"      accept="image/*"                onchange="embedFromInput(event)">
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════
+   GLOBALS
+═══════════════════════════════════ */
+const editor = document.getElementById('editor');
+let savedRange = null;
+let msgTimer   = null;
+
+/*
+  File System Access API is only usable on HTTPS or localhost.
+  When opened as file:// the API exists in the browser but throws
+  SecurityError immediately.  We therefore probe at runtime with a
+  quick try/catch instead of a simple feature-detect.
+*/
+let CAN_FSA = false;   // will be set after first successful call
+
+/* ═══════════════════════════════════
+   MENUS
+═══════════════════════════════════ */
+function toggleMenu(name) {
+  const dd     = document.getElementById('dd-' + name);
+  const isOpen = dd.classList.contains('open');
+  closeAllMenus();
+  if (!isOpen) {
+    dd.classList.add('open');
+    document.querySelector(`#mi-${name} .menu-btn`).classList.add('open');
+  }
+}
+function closeAllMenus() {
+  document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('open'));
+}
+document.addEventListener('click', e => { if (!e.target.closest('.menu-item')) closeAllMenus(); });
+
+/* ═══════════════════════════════════
+   KEYBOARD SHORTCUTS
+═══════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && e.key.toLowerCase() === 'n') { e.preventDefault(); newDoc(); }
+  if (ctrl && e.key.toLowerCase() === 'o') { e.preventDefault(); openFile(); }
+  if (ctrl && e.key.toLowerCase() === 's') { e.preventDefault(); promptSave(); }
+  if (ctrl && e.key.toLowerCase() === 'b') { e.preventDefault(); fmt('bold'); }
+  if (ctrl && e.key.toLowerCase() === 'i') { e.preventDefault(); fmt('italic'); }
+});
+
+/* ═══════════════════════════════════
+   FORMATTING
+═══════════════════════════════════ */
+function fmt(cmd) {
+  editor.focus();
+  document.execCommand(cmd, false, null);
+  syncToolbar();
+}
+
+function applyFontSize() {
+  const px = parseInt(document.getElementById('fontSize').value, 10);
+  if (!px || px < 1) return;
+
+  editor.focus();
+  restoreSelection();   // put the saved selection back in the editor
+
+  const sel = window.getSelection();
+  const hasSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed;
+
+  if (hasSelection) {
+    // Wrap selected text in a <span style="font-size:Xpx">
+    const range = sel.getRangeAt(0);
+    const span  = document.createElement('span');
+    span.style.fontSize = px + 'px';
+    try {
+      range.surroundContents(span);
+    } catch {
+      // Selection crosses element boundaries — extract + re-insert
+      const frag = range.extractContents();
+      span.appendChild(frag);
+      range.insertNode(span);
+    }
+    // Re-select the span so user sees the result
+    const r2 = document.createRange();
+    r2.selectNodeContents(span);
+    sel.removeAllRanges();
+    sel.addRange(r2);
+  } else {
+    // No selection — set editor default so new typing uses this size
+    editor.style.fontSize = px + 'px';
+  }
+  syncToolbar();
+}
+
+
+function syncToolbar() {
+  document.getElementById('btn-bold').classList.toggle('active',   document.queryCommandState('bold'));
+  document.getElementById('btn-italic').classList.toggle('active', document.queryCommandState('italic'));
+}
+editor.addEventListener('keyup',   syncToolbar);
+editor.addEventListener('mouseup', syncToolbar);
+document.addEventListener('selectionchange', () => {
+  if (document.activeElement === editor) syncToolbar();
+});
+
+/* ═══════════════════════════════════
+   WORD / CHAR COUNT
+═══════════════════════════════════ */
+function updateStats() {
+  const txt   = editor.innerText || '';
+  const words = txt.trim() === '' ? 0 : txt.trim().split(/\s+/).filter(Boolean).length;
+  const chars = txt.replace(/\n/g,'').length;
+  document.getElementById('stat-words').textContent = words + ' word' + (words !== 1 ? 's' : '');
+  document.getElementById('stat-chars').textContent = chars + ' char' + (chars !== 1 ? 's' : '');
+}
+editor.addEventListener('input', updateStats);
+
+/* ═══════════════════════════════════
+   STATUS BAR
+═══════════════════════════════════ */
+function setStatus(msg, ms = 3500) {
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => el.textContent = '', ms);
+}
+
+/* ═══════════════════════════════════
+   SELECTION SAVE / RESTORE
+═══════════════════════════════════ */
+function saveSelection() {
+  const sel = window.getSelection();
+  savedRange = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0).cloneRange() : null;
+}
+function restoreSelection() {
+  if (!savedRange) return;
+  try {
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  } catch(e) { /* stale range — ignore */ }
+}
+
+/* ═══════════════════════════════════
+   NEW DOCUMENT
+═══════════════════════════════════ */
+function newDoc() {
+  closeAllMenus();
+  editor.innerHTML = '';
+  editor.style.fontFamily = "'DM Sans',sans-serif";
+  editor.style.fontSize   = '15px';
+  document.getElementById('fontSize').value = '15';
+  updateStats();
+  setStatus('New document.');
+  editor.focus();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OPEN FILE
+   Strategy:
+   1. Try showOpenFilePicker (native OS dialog, full HDD access).
+      This works on HTTPS and localhost ONLY.
+   2. If it throws SecurityError or isn't available → fall back to
+      the hidden <input type=file> which always works, even file://
+═══════════════════════════════════════════════════════════════ */
+async function openFile() {
+  closeAllMenus();
+
+  let file = null;
+
+  if (window.showOpenFilePicker) {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        multiple: false,
+        types: [
+          {
+            description: 'Web Documents (MHTML, HTML)',
+            accept: {
+              'message/rfc822': ['.mhtml', '.mht'],
+              'text/html':      ['.html', '.htm'],
+            }
+          },
+          { description: 'All Files', accept: { '*/*': [] } }
+        ]
+      });
+      file = await handle.getFile();
+      CAN_FSA = true;
+    } catch (err) {
+      if (err.name === 'AbortError') return;   // user cancelled
+      // SecurityError on file:// → fall through to <input>
+    }
+  }
+
+  if (!file) {
+    // Fallback: hidden input (works on file://, Firefox, etc.)
+    document.getElementById('fileOpenInput').click();
+    return;
+  }
+
+  await processOpenedFile(file);
+}
+
+function loadFileFromInput(e) {
+  const file = e.target.files[0];
+  if (file) processOpenedFile(file);
+  e.target.value = '';
+}
+
+async function processOpenedFile(file) {
+  const name = file.name.toLowerCase();
+  const text = await file.text();
+  if (name.endsWith('.mhtml') || name.endsWith('.mht')) {
+    loadMHTML(text, file.name);
+  } else {
+    const bodyMatch = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    editor.innerHTML = bodyMatch ? bodyMatch[1] : text;
+    updateStats();
+    setStatus('Opened: ' + file.name);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MHTML PARSER
+   Handles: multipart/related, quoted-printable HTML,
+   base64 image parts, cid: → data-URL replacement
+═══════════════════════════════════════════════════════════════ */
+function loadMHTML(raw, filename) {
+  const bMatch = raw.match(/boundary="?([^"\r\n;]+)"?/i);
+  if (!bMatch) {
+    const bodyMatch = raw.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    editor.innerHTML = bodyMatch ? bodyMatch[1] : raw;
+    updateStats(); setStatus('Opened: ' + filename);
+    return;
+  }
+  const boundary = bMatch[1].trim();
+  const parts    = splitMIMEParts(raw, boundary);
+  const htmlPart = parts.find(p => p.type.startsWith('text/html'));
+  if (!htmlPart) { setStatus('No HTML part found in ' + filename); return; }
+
+  const cidMap = {};
+  parts.forEach(p => {
+    if (!p.type.startsWith('image/') || !p.cid) return;
+    const cid = p.cid.replace(/^<|>$/g, '').trim();
+    cidMap[cid] = 'data:' + p.type + ';base64,' + p.body;
+  });
+
+  let html = htmlPart.body;
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  let body = bodyMatch ? bodyMatch[1] : html;
+  body = body.replace(/src=["']cid:([^"']+)["']/gi, (_, cid) =>
+    cidMap[cid.trim()] ? `src="${cidMap[cid.trim()]}"` : `src=""`
+  );
+  editor.innerHTML = body;
+  updateStats();
+  setStatus('Opened: ' + filename);
+}
+
+function splitMIMEParts(raw, boundary) {
+  const sections = raw.split(new RegExp(rxEscape('--' + boundary)));
+  const parts = [];
+  for (let i = 1; i < sections.length; i++) {
+    const sec = sections[i];
+    if (/^--/.test(sec.trim())) continue;
+    const p = parsePart(sec);
+    if (p) parts.push(p);
+  }
+  return parts;
+}
+
+function parsePart(text) {
+  const m = text.match(/(\r?\n)(\r?\n)/);
+  if (!m) return null;
+  const sep    = text.indexOf(m[0]);
+  const hdrRaw = text.slice(0, sep);
+  let bodyRaw  = text.slice(sep + m[0].length).replace(/\r?\n?--?\s*$/, '');
+  const hdrs   = {};
+  hdrRaw.replace(/\r?\n[ \t]+/g, ' ').split(/\r?\n/).forEach(line => {
+    const lm = line.match(/^([^:]+):\s*(.*)$/);
+    if (lm) hdrs[lm[1].toLowerCase().trim()] = lm[2].trim();
+  });
+  const type = (hdrs['content-type'] || '').split(';')[0].trim().toLowerCase();
+  const enc  = (hdrs['content-transfer-encoding'] || '').toLowerCase().trim();
+  const cid  = (hdrs['content-id'] || '').trim();
+  let body = bodyRaw;
+  if (enc === 'quoted-printable') body = decodeQP(bodyRaw);
+  else if (enc === 'base64')      body = bodyRaw.replace(/\s+/g, '');
+  return { type, enc, cid, body };
+}
+
+function decodeQP(str) {
+  str = str.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/=\n/g, '');
+  const bytes = [];
+  for (let i = 0; i < str.length;) {
+    if (str[i] === '=' && /^[0-9A-Fa-f]{2}$/.test(str.slice(i+1, i+3))) {
+      bytes.push(parseInt(str.slice(i+1, i+3), 16)); i += 3;
+    } else { bytes.push(str.charCodeAt(i++)); }
+  }
+  try { return new TextDecoder('utf-8').decode(new Uint8Array(bytes)); }
+  catch { return str; }
+}
+
+function rxEscape(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+/* ═══════════════════════════════════════════════════════════════
+   INSERT PICTURE
+   Always use the hidden <input type=file> — it works everywhere
+   (file://, HTTPS, Firefox, Chrome, Edge).
+   We save & restore the caret so the image lands at the cursor.
+═══════════════════════════════════════════════════════════════ */
+function insertPicture() {
+  closeAllMenus();
+  saveSelection();                         // remember cursor position
+  document.getElementById('imgInput').click();
+}
+
+function embedFromInput(e) {
+  const file = e.target.files[0];
+  e.target.value = '';                     // reset so same file can be picked again
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    editor.focus();
+    restoreSelection();                    // put cursor back where it was
+
+    const img = document.createElement('img');
+    img.src   = ev.target.result;
+    img.alt   = file.name;
+
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.collapse(false);
+      range.insertNode(img);
+      // Move caret to just after the image
+      const after = document.createRange();
+      after.setStartAfter(img);
+      after.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(after);
+    } else {
+      editor.appendChild(img);
+    }
+    updateStats();
+    setStatus('Image inserted: ' + file.name);
+  };
+  reader.readAsDataURL(file);
+}
+
+// Click image to select/deselect visually
+editor.addEventListener('click', e => {
+  document.querySelectorAll('#editor img.img-sel').forEach(i => i.classList.remove('img-sel'));
+  if (e.target.tagName === 'IMG') e.target.classList.add('img-sel');
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SAVE AS MHTML
+   Strategy — same as Open:
+   1. Try showSaveFilePicker (native OS dialog, full HDD access).
+   2. If SecurityError or unavailable → browser Download dialog.
+═══════════════════════════════════════════════════════════════ */
+function promptSave() {
+  closeAllMenus();
+  document.getElementById('saveModal').classList.add('open');
+  setTimeout(() => document.getElementById('saveFilename').focus(), 60);
+}
+function closeModal() {
+  document.getElementById('saveModal').classList.remove('open');
+}
+document.getElementById('saveModal').addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter')  doSave();
+});
+
+async function doSave() {
+  const name = (document.getElementById('saveFilename').value.trim() || 'document')
+                 .replace(/\.pdf$/i, '');
+  closeModal();
+
+  const edFont = editor.style.fontFamily || "'DM Sans',sans-serif";
+  const edSize = editor.style.fontSize   || '15px';
+
+  const tmp = document.createElement('div');
+  tmp.innerHTML = editor.innerHTML;
+  tmp.querySelectorAll('img').forEach(img => img.classList.remove('img-sel'));
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { setStatus('Pop-up blocked — please allow pop-ups and try again.'); return; }
+
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${esc(name)}</title>
+<style>
+  @media print { body { margin: 0; } @page { margin: 2cm; } }
+  body {
+    font-family: ${edFont};
+    font-size: ${edSize};
+    line-height: 1.75;
+    color: #111;
+    background: #fff;
+    max-width: 860px;
+    margin: 40px auto;
+    padding: 20px 40px;
+  }
+  img { max-width: 100%; display: block; margin: 12px 0; }
+  b, strong { font-weight: bold; }
+  i, em { font-style: italic; }
+</style>
+</head>
+<body>${tmp.innerHTML}</body>
+</html>`);
+  win.document.close();
+  win.onload = () => {
+    win.focus();
+    win.print();
+    win.onafterprint = () => win.close();
+  };
+  setStatus('Print dialog opened — choose "Save as PDF".');
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ═══════════════════════════════════
+   INIT
+═══════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  editor.focus();
+  updateStats();
+});
+</script>
+</body>
+</html>

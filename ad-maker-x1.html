@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Paint App</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial, sans-serif;
+    background:#f0f0f0;
+}
+
+.menu-bar{
+    background:#2d2d2d;
+    color:white;
+    padding:10px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:20px;
+    align-items:center;
+}
+
+.menu-group{
+    display:flex;
+    gap:10px;
+    align-items:center;
+}
+
+button{
+    padding:6px 12px;
+    border:none;
+    background:#4a4a4a;
+    color:white;
+    cursor:pointer;
+    border-radius:4px;
+}
+
+button:hover{
+    background:#666;
+}
+
+canvas{
+    display:block;
+    margin:20px auto;
+    border:2px solid #333;
+    background:white;
+    cursor:crosshair;
+}
+
+input[type="text"],
+input[type="number"],
+select{
+    padding:5px;
+}
+
+label{
+    font-size:14px;
+}
+</style>
+
+</head>
+<body>
+
+<div class="menu-bar">
+
+    <!-- FILE MENU -->
+    <div class="menu-group">
+        <strong>File</strong>
+
+        <button onclick="newCanvas()">New</button>
+
+        <button onclick="document.getElementById('fileLoader').click()">
+            Open / Load
+        </button>
+
+        <button onclick="saveImage('png')">Save PNG</button>
+
+        <button onclick="saveImage('jpg')">Save JPG</button>
+
+        <input type="file"
+               id="fileLoader"
+               accept="image/png, image/jpeg"
+               style="display:none">
+    </div>
+
+    <!-- TEXT MENU -->
+    <div class="menu-group">
+
+        <strong>Insert Text</strong>
+
+        <input type="text"
+               id="textInput"
+               placeholder="Type text here">
+
+        <label>Size</label>
+
+        <input type="number"
+               id="textSize"
+               value="30"
+               min="8"
+               max="200">
+
+        <label>Bold</label>
+
+        <input type="checkbox"
+               id="textBold">
+
+        <input type="color"
+               id="textColor"
+               value="#000000">
+
+        <button onclick="enableTextMode()">Insert</button>
+
+    </div>
+
+</div>
+
+<canvas id="canvas" width="1000" height="600"></canvas>
+
+<script>
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let textMode = false;
+
+// White background
+ctx.fillStyle = "white";
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+// ---------------- NEW ----------------
+function newCanvas(){
+
+    if(confirm("Create new canvas?")){
+
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+
+        ctx.fillStyle = "white";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+}
+
+// ---------------- LOAD IMAGE ----------------
+document.getElementById('fileLoader')
+.addEventListener('change', function(e){
+
+    const file = e.target.files[0];
+
+    if(!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(event){
+
+        const img = new Image();
+
+        img.onload = function(){
+
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+
+            ctx.fillStyle = "white";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+
+            ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        };
+
+        img.src = event.target.result;
+    };
+
+    reader.readAsDataURL(file);
+});
+
+// ---------------- SAVE ----------------
+function saveImage(type){
+
+    const fileName = "image";
+
+    if(type === 'png'){
+
+        const link = document.createElement('a');
+
+        link.download = fileName + ".png";
+
+        link.href = canvas.toDataURL("image/png");
+
+        link.click();
+    }
+
+    if(type === 'jpg'){
+
+        const tempCanvas = document.createElement('canvas');
+
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+
+        const tempCtx = tempCanvas.getContext('2d');
+
+        tempCtx.fillStyle = "white";
+        tempCtx.fillRect(0,0,tempCanvas.width,tempCanvas.height);
+
+        tempCtx.drawImage(canvas,0,0);
+
+        const link = document.createElement('a');
+
+        link.download = fileName + ".jpg";
+
+        link.href = tempCanvas.toDataURL("image/jpeg",0.95);
+
+        link.click();
+    }
+}
+
+// ---------------- TEXT MODE ----------------
+function enableTextMode(){
+
+    textMode = true;
+
+    alert("Click on the canvas to place the text.");
+}
+
+// ---------------- INSERT TEXT ----------------
+canvas.addEventListener('click', function(e){
+
+    if(!textMode) return;
+
+    const rect = canvas.getBoundingClientRect();
+
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const text = document.getElementById('textInput').value;
+
+    if(text.trim() === ""){
+
+        alert("Please type text first.");
+        return;
+    }
+
+    const size = document.getElementById('textSize').value;
+
+    const isBold = document.getElementById('textBold').checked;
+
+    const color = document.getElementById('textColor').value;
+
+    // Build font string
+    let fontStyle = "";
+
+    if(isBold){
+        fontStyle += "bold ";
+    }
+
+    fontStyle += size + "px Arial";
+
+    ctx.font = fontStyle;
+
+    ctx.fillStyle = color;
+
+    ctx.fillText(text, x, y);
+
+    textMode = false;
+});
+
+</script>
+
+</body>
+</html>

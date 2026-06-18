@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Basic Invoicer — George A Georgopoulos</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f3ef;
+    --surface: #ffffff;
+    --border: #ddd9d0;
+    --border-light: #eceae4;
+    --accent: #1a1a1a;
+    --accent2: #c8502a;
+    --text: #1a1a1a;
+    --muted: #7a7570;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  .app-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1.5px solid var(--accent);
+  }
+  .app-title {
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .app-title span { color: var(--accent2); }
+  .app-byline { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 11px;
+    font-family: var(--mono);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .card-body { padding: 20px; }
+
+  /* Two-col grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+
+  /* Form fields */
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: 11px;
+    font-family: var(--mono);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  input, textarea, select {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 9px 12px;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); background: #fff; }
+  textarea { resize: vertical; }
+  select { cursor: pointer; }
+
+  /* Line items table */
+  .items-table { width: 100%; border-collapse: collapse; }
+  .items-table thead tr {
+    border-bottom: 1px solid var(--border);
+  }
+  .items-table th {
+    font-size: 11px;
+    font-family: var(--mono);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    padding: 10px 12px;
+    text-align: left;
+  }
+  .items-table th:last-child, .items-table td:last-child { text-align: right; }
+  .items-table td { padding: 4px 4px; border-bottom: 1px solid var(--border-light); vertical-align: middle; }
+  .items-table td input {
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 3px;
+    padding: 7px 8px;
+  }
+  .items-table td input:focus { border-color: var(--border); background: var(--bg); }
+  .items-table .line-total {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 12px;
+    white-space: nowrap;
+    color: var(--accent);
+  }
+  .items-table .remove-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.1s;
+  }
+  .items-table .remove-btn:hover { color: var(--accent2); }
+  .items-table tr:last-child td { border-bottom: none; }
+
+  /* Add line button */
+  .add-line-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 3px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    width: 100%;
+    justify-content: center;
+  }
+  .add-line-btn:hover { border-color: var(--accent2); color: var(--accent2); background: #fdf5f2; }
+
+  /* Totals */
+  .totals-wrap { display: flex; justify-content: flex-end; }
+  .totals-table { width: 320px; }
+  .totals-table td { padding: 8px 0; font-size: 14px; }
+  .totals-table td:last-child { text-align: right; font-family: var(--mono); font-weight: 500; }
+  .totals-table .t-label { color: var(--muted); font-size: 13px; }
+  .totals-table .t-grand td { 
+    font-size: 18px;
+    font-weight: 600;
+    padding-top: 14px;
+    border-top: 1.5px solid var(--accent);
+  }
+  .totals-table .t-grand td:last-child { color: var(--accent2); }
+
+  /* Actions */
+  .actions { display: flex; gap: 10px; margin-top: 24px; }
+  .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 10px 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn.primary:hover { background: #333; }
+  .btn.danger:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* Footer */
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-light);
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media print {
+    body { background: #fff; padding: 10px; }
+    .actions, .add-line-btn, .remove-btn, .app-header { display: none !important; }
+    .card { border: 1px solid #ccc; box-shadow: none; }
+    input, textarea, select {
+      border: none !important;
+      background: transparent !important;
+      padding: 4px 0 !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="app-header">
+    <div class="app-title">Basic Invoicer <span>v2</span></div>
+    <div class="app-byline">George A Georgopoulos</div>
+  </div>
+
+  <!-- Business Details -->
+  <div class="card">
+    <div class="card-header">Invoice Details</div>
+    <div class="card-body">
+      <div class="grid-2" style="margin-bottom:16px;">
+        <div class="field">
+          <label>From (your business)</label>
+          <textarea id="from" rows="4" placeholder="Business name&#10;Address&#10;Phone / email"></textarea>
+        </div>
+        <div class="field">
+          <label>To (customer)</label>
+          <textarea id="to" rows="4" placeholder="Customer name&#10;Address&#10;Phone / email"></textarea>
+        </div>
+      </div>
+      <div class="grid-4">
+        <div class="field">
+          <label>Invoice #</label>
+          <input type="text" id="inv-num" placeholder="INV-001">
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="inv-date">
+        </div>
+        <div class="field">
+          <label>Due Date</label>
+          <input type="date" id="inv-due">
+        </div>
+        <div class="field">
+          <label>Currency</label>
+          <select id="currency" onchange="recalc()">
+            <option value="$">USD — $</option>
+            <option value="€">EUR — €</option>
+            <option value="£">GBP — £</option>
+            <option value="A$">AUD — A$</option>
+            <option value="">Other</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Line Items -->
+  <div class="card">
+    <div class="card-header">Line Items</div>
+    <div class="card-body" style="padding-bottom:16px;">
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="width:70px;">Qty</th>
+            <th>Description</th>
+            <th style="width:130px;">Unit Price</th>
+            <th style="width:100px;">Tax %</th>
+            <th style="width:130px;">Line Total</th>
+            <th style="width:32px;"></th>
+          </tr>
+        </thead>
+        <tbody id="lines"></tbody>
+      </table>
+      <button class="add-line-btn" onclick="addLine()">+ Add line item</button>
+    </div>
+  </div>
+
+  <!-- Totals -->
+  <div class="card">
+    <div class="card-body">
+      <div class="totals-wrap">
+        <table class="totals-table">
+          <tr>
+            <td class="t-label">Subtotal</td>
+            <td id="subtotal">—</td>
+          </tr>
+          <tr>
+            <td class="t-label">Tax</td>
+            <td id="tax-total">—</td>
+          </tr>
+          <tr class="t-grand">
+            <td>Total Due</td>
+            <td id="grand-total">—</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="card">
+    <div class="card-header">Notes / Payment Terms</div>
+    <div class="card-body">
+      <textarea id="notes" rows="3" placeholder="e.g. Payment due within 30 days. Bank transfer to account: ..."></textarea>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="btn primary" onclick="window.print()">&#128438; Print / Save PDF</button>
+    <button class="btn danger" onclick="clearAll()">&#10227; Clear All</button>
+  </div>
+
+  <div class="footer">
+    <span>No responsibility assumed for any issue arising from use of this program.</span>
+    <span>&copy; George A Georgopoulos. All rights reserved.</span>
+  </div>
+
+</div>
+
+<script>
+  let lineId = 0;
+  const lines = [];
+
+  function sym() {
+    return document.getElementById('currency').value;
+  }
+
+  function fmt(n) {
+    return sym() + parseFloat(n).toFixed(2);
+  }
+
+  function addLine() {
+    const id = ++lineId;
+    lines.push(id);
+    const tbody = document.getElementById('lines');
+    const tr = document.createElement('tr');
+    tr.id = 'line-' + id;
+    tr.innerHTML = `
+      <td><input type="number" class="qty" min="0" step="1" value="1" oninput="recalc()"></td>
+      <td><input type="text" class="desc" placeholder="Item description" style="width:100%;"></td>
+      <td><input type="number" class="price" min="0" step="0.01" placeholder="0.00" oninput="recalc()"></td>
+      <td><input type="number" class="tax" min="0" step="0.1" placeholder="0" oninput="recalc()"></td>
+      <td class="line-total" id="lt-${id}">—</td>
+      <td><button class="remove-btn" onclick="removeLine(${id})" title="Remove">&times;</button></td>
+    `;
+    tbody.appendChild(tr);
+    recalc();
+  }
+
+  function removeLine(id) {
+    const idx = lines.indexOf(id);
+    if (idx > -1) lines.splice(idx, 1);
+    const row = document.getElementById('line-' + id);
+    if (row) row.remove();
+    recalc();
+  }
+
+  function recalc() {
+    let subtotal = 0, taxTotal = 0;
+    lines.forEach(id => {
+      const row = document.getElementById('line-' + id);
+      if (!row) return;
+      const qty = parseFloat(row.querySelector('.qty').value) || 0;
+      const price = parseFloat(row.querySelector('.price').value) || 0;
+      const taxPct = parseFloat(row.querySelector('.tax').value) || 0;
+      const base = qty * price;
+      const lineTax = base * taxPct / 100;
+      subtotal += base;
+      taxTotal += lineTax;
+      document.getElementById('lt-' + id).textContent = base > 0 ? fmt(base + lineTax) : '—';
+    });
+    const grand = subtotal + taxTotal;
+    document.getElementById('subtotal').textContent = subtotal > 0 ? fmt(subtotal) : '—';
+    document.getElementById('tax-total').textContent = taxTotal > 0 ? fmt(taxTotal) : '—';
+    document.getElementById('grand-total').textContent = grand > 0 ? fmt(grand) : '—';
+  }
+
+  function clearAll() {
+    if (!confirm('Clear all invoice data?')) return;
+    lines.length = 0;
+    lineId = 0;
+    document.getElementById('lines').innerHTML = '';
+    ['from','to','inv-num','inv-due','notes'].forEach(id => document.getElementById(id).value = '');
+    ['subtotal','tax-total','grand-total'].forEach(id => document.getElementById(id).textContent = '—');
+    addLine(); addLine(); addLine();
+  }
+
+  document.getElementById('inv-date').valueAsDate = new Date();
+  addLine(); addLine(); addLine();
+</script>
+</body>
+</html>

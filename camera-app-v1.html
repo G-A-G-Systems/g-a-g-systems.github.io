@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --panel: #111;
+    --border: #222;
+    --accent: #e8ff47;
+    --red: #ff3c3c;
+    --text: #f0f0f0;
+    --muted: #555;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* Header */
+  header {
+    width: 100%;
+    max-width: 700px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px 12px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 4px;
+    color: var(--accent);
+  }
+
+  .mode-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .mode-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .mode-btn.active {
+    background: var(--accent);
+    color: #000;
+  }
+
+  /* Viewfinder */
+  .viewfinder-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 700px;
+    background: #000;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+  }
+
+  video#preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transform: scaleX(-1); /* mirror like a real camera */
+  }
+
+  canvas#snapshot { display: none; }
+
+  /* Corner brackets */
+  .corner {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-color: var(--accent);
+    border-style: solid;
+    opacity: 0.7;
+  }
+  .corner.tl { top: 14px; left: 14px; border-width: 2px 0 0 2px; }
+  .corner.tr { top: 14px; right: 14px; border-width: 2px 2px 0 0; }
+  .corner.bl { bottom: 14px; left: 14px; border-width: 0 0 2px 2px; }
+  .corner.br { bottom: 14px; right: 14px; border-width: 0 2px 2px 0; }
+
+  /* REC indicator */
+  .rec-badge {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    align-items: center;
+    gap: 7px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--red);
+    border-radius: 3px;
+    padding: 4px 12px;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    color: var(--red);
+    text-transform: uppercase;
+  }
+  .rec-dot {
+    width: 7px; height: 7px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: blink 1s step-start infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .rec-badge.visible { display: flex; }
+
+  /* Timer */
+  #timer {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #timer.visible { opacity: 1; }
+
+  /* Status bar */
+  .status-bar {
+    width: 100%;
+    max-width: 700px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  #status-text {
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  #file-count {
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  /* Controls */
+  .controls {
+    width: 100%;
+    max-width: 700px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px 20px 28px;
+  }
+
+  .btn {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 3px;
+    border: none;
+    border-radius: 4px;
+    padding: 14px 40px;
+    cursor: pointer;
+    transition: all 0.15s;
+    outline: none;
+  }
+
+  .btn-start {
+    background: var(--accent);
+    color: #000;
+    min-width: 160px;
+  }
+  .btn-start:hover { background: #d4e830; }
+  .btn-start:active { transform: scale(0.97); }
+
+  .btn-stop {
+    background: transparent;
+    color: var(--red);
+    border: 1.5px solid var(--red);
+    min-width: 130px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, background 0.15s;
+  }
+  .btn-stop.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .btn-stop:hover { background: rgba(255,60,60,0.08); }
+  .btn-stop:active { transform: scale(0.97); }
+
+  /* Flash overlay for photo */
+  .flash {
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.05s;
+    z-index: 10;
+  }
+  .flash.go { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">CAM</div>
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn-photo-mode">PHOTO</button>
+    <button class="mode-btn" id="btn-video-mode">VIDEO</button>
+  </div>
+</header>
+
+<div class="viewfinder-wrap">
+  <video id="preview" autoplay playsinline muted></video>
+  <canvas id="snapshot"></canvas>
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+  <div class="rec-badge" id="rec-badge"><div class="rec-dot"></div>REC</div>
+  <div id="timer">00:00</div>
+  <div class="flash" id="flash"></div>
+</div>
+
+<div class="status-bar">
+  <span id="status-text">READY</span>
+  <span id="file-count">FILES: 0</span>
+</div>
+
+<div class="controls">
+  <button class="btn btn-stop" id="btn-stop">STOP</button>
+  <button class="btn btn-start" id="btn-start">TAKE</button>
+</div>
+
+<script>
+  const preview     = document.getElementById('preview');
+  const snapshot    = document.getElementById('snapshot');
+  const btnStart    = document.getElementById('btn-start');
+  const btnStop     = document.getElementById('btn-stop');
+  const btnPhotoMode= document.getElementById('btn-photo-mode');
+  const btnVideoMode= document.getElementById('btn-video-mode');
+  const recBadge    = document.getElementById('rec-badge');
+  const timerEl     = document.getElementById('timer');
+  const statusText  = document.getElementById('status-text');
+  const fileCount   = document.getElementById('file-count');
+  const flashEl     = document.getElementById('flash');
+
+  let stream = null;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let timerInterval = null;
+  let elapsedSeconds = 0;
+  let filesSaved = 0;
+  let mode = 'photo'; // 'photo' or 'video'
+  let isRecording = false;
+
+  // ── Init camera ─────────────────────────────────────────────────────────
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      preview.srcObject = stream;
+      setStatus('READY');
+    } catch (err) {
+      setStatus('CAM ERROR');
+      console.error(err);
+    }
+  }
+
+  // ── Mode toggle ──────────────────────────────────────────────────────────
+  btnPhotoMode.addEventListener('click', () => {
+    if (isRecording) return;
+    mode = 'photo';
+    btnPhotoMode.classList.add('active');
+    btnVideoMode.classList.remove('active');
+    btnStart.textContent = 'TAKE';
+    setStatus('READY');
+  });
+
+  btnVideoMode.addEventListener('click', () => {
+    if (isRecording) return;
+    mode = 'video';
+    btnVideoMode.classList.add('active');
+    btnPhotoMode.classList.remove('active');
+    btnStart.textContent = 'START';
+    setStatus('READY');
+  });
+
+  // ── START / TAKE button ──────────────────────────────────────────────────
+  btnStart.addEventListener('click', () => {
+    if (mode === 'photo') takePhoto();
+    else startRecording();
+  });
+
+  // ── STOP button ──────────────────────────────────────────────────────────
+  btnStop.addEventListener('click', () => {
+    if (isRecording) stopRecording();
+  });
+
+  // ── Take photo ───────────────────────────────────────────────────────────
+  function takePhoto() {
+    if (!stream) return;
+    const w = preview.videoWidth;
+    const h = preview.videoHeight;
+    snapshot.width = w;
+    snapshot.height = h;
+    const ctx = snapshot.getContext('2d');
+    // mirror to match preview
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(preview, 0, 0, w, h);
+
+    // Flash effect
+    flashEl.classList.add('go');
+    setTimeout(() => flashEl.classList.remove('go'), 120);
+
+    snapshot.toBlob(blob => {
+      download(blob, timestamp() + '.jpg', 'image/jpeg');
+      filesSaved++;
+      updateCount();
+      setStatus('PHOTO SAVED');
+      setTimeout(() => setStatus('READY'), 1500);
+    }, 'image/jpeg', 0.95);
+  }
+
+  // ── Record video ─────────────────────────────────────────────────────────
+  function startRecording() {
+    if (!stream || isRecording) return;
+    recordedChunks = [];
+
+    // Pick best supported codec
+    const mimeType = getSupportedMime();
+    const options = mimeType ? { mimeType } : {};
+    mediaRecorder = new MediaRecorder(stream, options);
+
+    mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => saveVideo();
+
+    mediaRecorder.start(100);
+    isRecording = true;
+
+    // UI
+    recBadge.classList.add('visible');
+    timerEl.classList.add('visible');
+    btnStop.classList.add('visible');
+    btnStart.style.opacity = '0.3';
+    btnStart.style.pointerEvents = 'none';
+    btnPhotoMode.style.pointerEvents = 'none';
+    btnVideoMode.style.pointerEvents = 'none';
+    setStatus('RECORDING');
+
+    elapsedSeconds = 0;
+    updateTimer();
+    timerInterval = setInterval(() => { elapsedSeconds++; updateTimer(); }, 1000);
+  }
+
+  function stopRecording() {
+    if (!isRecording || !mediaRecorder) return;
+    mediaRecorder.stop();
+    isRecording = false;
+    clearInterval(timerInterval);
+
+    // UI
+    recBadge.classList.remove('visible');
+    timerEl.classList.remove('visible');
+    btnStop.classList.remove('visible');
+    btnStart.style.opacity = '';
+    btnStart.style.pointerEvents = '';
+    btnPhotoMode.style.pointerEvents = '';
+    btnVideoMode.style.pointerEvents = '';
+    setStatus('SAVING...');
+  }
+
+  function saveVideo() {
+    // Always wrap in MP4 container (browser may record as webm/mp4 internally)
+    const mimeType = mediaRecorder.mimeType || 'video/mp4';
+    const blob = new Blob(recordedChunks, { type: mimeType });
+    download(blob, timestamp() + '.mp4', 'video/mp4');
+    filesSaved++;
+    updateCount();
+    setStatus('VIDEO SAVED');
+    setTimeout(() => setStatus('READY'), 1800);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function download(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  function timestamp() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `cam_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  }
+
+  function getSupportedMime() {
+    const types = ['video/mp4;codecs=h264,aac', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
+    return types.find(t => MediaRecorder.isTypeSupported(t)) || '';
+  }
+
+  function updateTimer() {
+    const m = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+    const s = String(elapsedSeconds % 60).padStart(2, '0');
+    timerEl.textContent = `${m}:${s}`;
+  }
+
+  function setStatus(msg) { statusText.textContent = msg; }
+  function updateCount() { fileCount.textContent = `FILES: ${filesSaved}`; }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  startCamera();
+</script>
+</body>
+</html>

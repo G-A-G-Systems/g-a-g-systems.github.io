@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Paint App</title>
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f0f0f0;
+}
+.menu-bar {
+    background: #2d2d2d;
+    color: white;
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+}
+.menu-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+button {
+    padding: 6px 12px;
+    border: none;
+    background: #4a4a4a;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+button:hover { background: #666; }
+button.active { background: #1a7fd4; }
+
+#canvas-wrap {
+    position: relative;
+    width: 1000px;
+    margin: 20px auto;
+}
+canvas {
+    display: block;
+    border: 2px solid #333;
+    background: white;
+    cursor: default;
+}
+input[type="text"],
+input[type="number"],
+select { padding: 5px; }
+label { font-size: 14px; }
+
+/* ── Floating text box overlay ── */
+#text-overlay {
+    position: absolute;
+    top: 60px;
+    left: 60px;
+    display: none;
+    touch-action: none;
+    user-select: none;
+}
+#text-box {
+    position: relative;
+    min-width: 160px;
+    min-height: 50px;
+    width: 260px;
+    padding: 8px 10px;
+    border: 2px dashed #1a7fd4;
+    box-sizing: border-box;
+    background: rgba(255,255,255,0.15);
+    cursor: move;
+    word-break: break-word;
+    white-space: pre-wrap;
+    line-height: 1.25;
+    /* text styling applied inline via JS */
+}
+
+/* Resize handle – bottom-right corner */
+#resize-handle {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    width: 14px;
+    height: 14px;
+    background: #1a7fd4;
+    border-radius: 50%;
+    cursor: se-resize;
+    z-index: 10;
+}
+/* Rotate handle – top-center */
+#rotate-handle {
+    position: absolute;
+    top: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 16px;
+    background: #e84393;
+    border-radius: 50%;
+    cursor: grab;
+    z-index: 10;
+}
+#rotate-handle::after {
+    content: '↻';
+    position: absolute;
+    top: -2px;
+    left: 1px;
+    font-size: 13px;
+    color: white;
+    line-height: 1;
+    pointer-events: none;
+}
+/* Stem from rotate handle to box */
+#rotate-stem {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    width: 2px;
+    height: 12px;
+    background: #e84393;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+#place-btn {
+    position: absolute;
+    bottom: -36px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 14px;
+    font-size: 13px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+#place-btn:hover { background: #1e8449; }
+</style>
+</head>
+<body>
+
+<div class="menu-bar">
+
+    <!-- FILE MENU -->
+    <div class="menu-group">
+        <strong>File</strong>
+        <button onclick="newCanvas()">New</button>
+        <button onclick="document.getElementById('fileLoader').click()">Open / Load</button>
+        <button onclick="saveImage('png')">Save PNG</button>
+        <button onclick="saveImage('jpg')">Save JPG</button>
+        <input type="file" id="fileLoader" accept="image/png, image/jpeg" style="display:none">
+    </div>
+
+    <!-- TEXT MENU -->
+    <div class="menu-group">
+        <strong>Insert Text</strong>
+        <input type="text" id="textInput" placeholder="Type text here" oninput="updateOverlay()">
+        <label>Size</label>
+        <input type="number" id="textSize" value="30" min="8" max="200" oninput="updateOverlay()">
+        <label>Bold</label>
+        <input type="checkbox" id="textBold" onchange="updateOverlay()">
+        <input type="color" id="textColor" value="#000000" oninput="updateOverlay()">
+        <button id="insertBtn" onclick="enableTextMode()">Insert Text Box</button>
+    </div>
+
+</div>
+
+<!-- Canvas + floating overlay wrapper -->
+<div id="canvas-wrap">
+    <canvas id="canvas" width="1000" height="600"></canvas>
+
+    <!-- Draggable / rotatable text overlay -->
+    <div id="text-overlay">
+        <div id="rotate-handle" title="Drag to rotate"></div>
+        <div id="rotate-stem"></div>
+        <div id="text-box">Sample text</div>
+        <div id="resize-handle" title="Drag to resize"></div>
+        <button id="place-btn" onclick="stampText()">✔ Place Text</button>
+    </div>
+</div>
+
+<script>
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const overlay = document.getElementById('text-overlay');
+const textBox = document.getElementById('text-box');
+
+let currentRotation = 0; // degrees
+
+// White background
+ctx.fillStyle = "white";
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+// ── NEW ──────────────────────────────────────────────────────────────
+function newCanvas() {
+    if (confirm("Create new canvas?")) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+// ── LOAD IMAGE ───────────────────────────────────────────────────────
+document.getElementById('fileLoader').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (event) {
+        const img = new Image();
+        img.onload = function () {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+// ── SAVE ─────────────────────────────────────────────────────────────
+function saveImage(type) {
+    const fileName = "image";
+    if (type === 'png') {
+        const link = document.createElement('a');
+        link.download = fileName + ".png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    }
+    if (type === 'jpg') {
+        const tmp = document.createElement('canvas');
+        tmp.width  = canvas.width;
+        tmp.height = canvas.height;
+        const tc   = tmp.getContext('2d');
+        tc.fillStyle = "white";
+        tc.fillRect(0, 0, tmp.width, tmp.height);
+        tc.drawImage(canvas, 0, 0);
+        const link = document.createElement('a');
+        link.download = fileName + ".jpg";
+        link.href = tmp.toDataURL("image/jpeg", 0.95);
+        link.click();
+    }
+}
+
+// ── TEXT BOX ENABLE ──────────────────────────────────────────────────
+function enableTextMode() {
+    currentRotation = 0;
+    overlay.style.transform = `rotate(0deg)`;
+    overlay.style.display = 'block';
+    updateOverlay();
+    document.getElementById('insertBtn').classList.add('active');
+}
+
+function buildFont() {
+    const size   = document.getElementById('textSize').value  || 30;
+    const isBold = document.getElementById('textBold').checked;
+    return (isBold ? 'bold ' : '') + size + 'px Arial';
+}
+
+function updateOverlay() {
+    if (overlay.style.display === 'none') return;
+    const text  = document.getElementById('textInput').value || '';
+    const color = document.getElementById('textColor').value;
+    const size  = document.getElementById('textSize').value || 30;
+    const bold  = document.getElementById('textBold').checked;
+    textBox.style.font       = buildFont();
+    textBox.style.color      = color;
+    textBox.style.fontSize   = size + 'px';
+    textBox.style.fontWeight = bold ? 'bold' : 'normal';
+    textBox.textContent      = text || '↑ Type text in the bar above';
+}
+
+// ── STAMP TEXT ONTO CANVAS ───────────────────────────────────────────
+function stampText() {
+    const text = document.getElementById('textInput').value.trim();
+    if (!text) { alert("Please type some text first."); return; }
+
+    // Overlay position (top-left of the un-rotated box)
+    const ol = overlay.offsetLeft;
+    const ot = overlay.offsetTop;
+    const bw = textBox.offsetWidth;
+    const bh = textBox.offsetHeight;
+
+    // Centre of the box in canvas-coordinate space
+    const cx = ol + bw / 2;
+    const cy = ot + bh / 2;
+
+    const color  = document.getElementById('textColor').value;
+    const size   = parseInt(document.getElementById('textSize').value) || 30;
+    const isBold = document.getElementById('textBold').checked;
+
+    // Save state, rotate around box centre
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(currentRotation * Math.PI / 180);
+    ctx.translate(-cx, -cy);
+
+    ctx.font      = buildFont();
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'top';
+
+    // Word-wrap to box width (with padding offset)
+    const padding   = 10;
+    const maxWidth  = bw - padding * 2;
+    const lineH     = size * 1.25;
+    const words     = text.split(' ');
+    let   line      = '';
+    let   y         = ot + padding;
+    const startX    = ol + padding;
+
+    for (let i = 0; i < words.length; i++) {
+        const testLine  = line + words[i] + ' ';
+        const metrics   = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && i > 0) {
+            ctx.fillText(line.trimEnd(), startX, y);
+            line = words[i] + ' ';
+            y   += lineH;
+        } else {
+            line = testLine;
+        }
+    }
+    ctx.fillText(line.trimEnd(), startX, y);
+
+    ctx.restore();
+
+    // Hide overlay
+    overlay.style.display = 'none';
+    overlay.style.transform = 'rotate(0deg)';
+    currentRotation = 0;
+    document.getElementById('insertBtn').classList.remove('active');
+}
+
+// ── DRAG (move overlay) ───────────────────────────────────────────────
+let dragging = false, dragOffX = 0, dragOffY = 0;
+
+textBox.addEventListener('mousedown', function (e) {
+    if (e.target === document.getElementById('resize-handle')) return;
+    dragging = true;
+    const rect = overlay.getBoundingClientRect();
+    dragOffX = e.clientX - rect.left;
+    dragOffY = e.clientY - rect.top;
+    e.preventDefault();
+});
+
+document.addEventListener('mousemove', function (e) {
+    if (!dragging) return;
+    const wrap = document.getElementById('canvas-wrap').getBoundingClientRect();
+    overlay.style.left = (e.clientX - wrap.left - dragOffX) + 'px';
+    overlay.style.top  = (e.clientY - wrap.top  - dragOffY) + 'px';
+});
+
+document.addEventListener('mouseup', function () { dragging = false; });
+
+// ── RESIZE ────────────────────────────────────────────────────────────
+let resizing = false;
+const resizeHandle = document.getElementById('resize-handle');
+
+resizeHandle.addEventListener('mousedown', function (e) {
+    resizing = true;
+    e.preventDefault();
+    e.stopPropagation();
+});
+
+document.addEventListener('mousemove', function (e) {
+    if (!resizing) return;
+    const rect = textBox.getBoundingClientRect();
+    const newW = Math.max(80,  e.clientX - rect.left + 6);
+    const newH = Math.max(40,  e.clientY - rect.top  + 6);
+    textBox.style.width  = newW + 'px';
+    textBox.style.height = newH + 'px';
+});
+
+document.addEventListener('mouseup', function () { resizing = false; });
+
+// ── ROTATE ────────────────────────────────────────────────────────────
+let rotating = false;
+const rotateHandle = document.getElementById('rotate-handle');
+
+rotateHandle.addEventListener('mousedown', function (e) {
+    rotating = true;
+    e.preventDefault();
+    e.stopPropagation();
+});
+
+document.addEventListener('mousemove', function (e) {
+    if (!rotating) return;
+    const rect  = overlay.getBoundingClientRect();
+    const cx    = rect.left + rect.width  / 2;
+    const cy    = rect.top  + rect.height / 2;
+    const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI + 90;
+    currentRotation = angle;
+    overlay.style.transform = `rotate(${angle}deg)`;
+});
+
+document.addEventListener('mouseup', function () { rotating = false; });
+</script>
+
+</body>
+</html>

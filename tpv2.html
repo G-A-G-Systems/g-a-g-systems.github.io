@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+.dropbtn {
+  background-color: #04AA6D;
+  color: white;
+  padding: 16px;
+  font-size: 16px;
+  border: none;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f1f1f1;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+}
+
+.dropdown-content a {
+  color: black;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+.dropdown-content a:hover {background-color: #ddd;}
+
+.dropdown:hover .dropdown-content {display: block;}
+
+.dropdown:hover .dropbtn {background-color: #3e8e41;}
+</style>
+</head>
+<body style="background-color:white;">
+
+
+
+<div class="dropdown">
+  <button class="dropbtn">MENU</button> G A G Systems - Textpad v2 - By George A Georgopoulos (G A G Systems Architect)
+  <div class="dropdown-content">
+
+
+      
+    
+    <a href="tpv2.html">New</a>
+    <a href="#">Open<input type="file" id="fileInput"></a>
+    <a href="#" onclick="downloadText()">Save to downloads folder</a>  
+  </div>
+</div>
+<br>
+
+<textarea rows="34" cols="100"id="output"></textarea>
+
+<br><br>
+    Copyright &copy; 2026,George A Georgopoulos, All Rights Reserved
+
+
+
+<br><br><br><br>
+ <b>DISCLAIMER<br><br></b>
+No responsibility assumed on any issue coming from this web program<br>
+
+<br><br><br><br>
+ <b>Copyright &copy; 2026,George A Georgopoulos, All Rights Reserved<br><br></b>
+
+             
+
+
+<br><br>
+
+<font size="5">If you like this program and want to Use it, as your own<br>
+    <b>The COST/PRICE IS</b> 40 USD-DOLLAR/EURO <br> Send money by post<br>
+    to: George A Gergopoulos, AGIA MAVRA, TRAGANO ILIAS, GREECE<br><br>
+    To get registered, send me an email at: GeorgeGeorgopoulosAudio@Gmail.com
+    <br><br>
+    
+    THANK YOU SO MUCH!!!!</font>
+
+
+
+
+
+<script>
+  const fileInput = document.getElementById('fileInput');
+  const output = document.getElementById('output');
+
+  // Listen for when a user selects a file
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0]; // Get the first selected file
+
+  
+    if (file) {
+      const reader = new FileReader();
+
+      // Define what happens once the file is finished reading
+      reader.onload = (e) => {
+        output.value = e.target.result; // Put the text into the textarea
+      };
+
+      // Read the file as plain text
+      reader.readAsText(file);
+    }
+  });
+
+
+
+function downloadText() {
+    // 1. Get the content from your textarea
+    const text = document.getElementById("output").value;
+    
+    // 2. Create a blob object with the text content
+    const blob = new Blob([text], { type: "text/plain" });
+    
+    // 3. Create a temporary link element
+    const link = document.createElement("a");
+    
+    // 4. Set the download attribute and file name
+    link.download = "myFile.txt";
+
+    // 5. Create a URL for the blob and link it
+    link.href = window.URL.createObjectURL(blob);
+    
+    // 6. Programmatically click the link to trigger download
+    link.click();
+    
+    // 7. Clean up by revoking the URL
+    window.URL.revokeObjectURL(link.href);
+}
+
+
+
+
+
+
+
+</script>
+
+
+
+
+
+
+
+    
+</body>
+</html>

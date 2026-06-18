@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canvas Editor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --border: #2a2a2a;
+    --accent: #c8f544;
+    --accent2: #44b8f5;
+    --ui-text: #e8e8e8;
+    --muted: #666;
+    --menu-h: 38px;
+    --toolbar-h: 40px;
+  }
+
+  body {
+    font-family: Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ui-text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── MENUBAR ── */
+  #menubar {
+    height: var(--menu-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 4px;
+    z-index: 1000;
+    flex-shrink: 0;
+  }
+
+  .app-label {
+    font-family: Arial, sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-right: 16px;
+    text-transform: uppercase;
+  }
+
+  .menu-item { position: relative; }
+
+  .menu-btn {
+    background: none;
+    border: none;
+    color: var(--ui-text);
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .menu-btn:hover, .menu-btn.open { background: var(--border); color: var(--accent); }
+
+  .dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 170px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    z-index: 2000;
+  }
+  .dropdown.visible { display: block; }
+
+  .dd-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+    color: var(--ui-text);
+    font-family: Arial, sans-serif;
+  }
+  .dd-item:hover { background: var(--border); color: var(--accent); }
+  .dd-sep { height: 1px; background: var(--border); margin: 3px 0; }
+  .dd-icon { font-size: 13px; width: 16px; text-align: center; }
+  .dd-key { margin-left: auto; color: var(--muted); font-size: 10px; }
+
+  /* ── TEXT TOOLBAR ── */
+  #text-toolbar {
+    height: var(--toolbar-h);
+    background: #111;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .tb-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: Arial, sans-serif;
+    margin-right: 4px;
+  }
+
+  .tb-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  /* Size control */
+  #font-size-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #font-size-down, #font-size-up {
+    width: 22px; height: 22px;
+    background: var(--border);
+    border: none;
+    color: var(--ui-text);
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.1s;
+    line-height: 1;
+    font-family: Arial, sans-serif;
+  }
+  #font-size-down:hover, #font-size-up:hover { background: #444; color: var(--accent); }
+
+  #font-size-display {
+    min-width: 32px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--accent2);
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+  }
+
+  /* Bold / Italic toggle buttons */
+  .fmt-btn {
+    width: 28px; height: 26px;
+    background: var(--border);
+    border: 1.5px solid transparent;
+    color: var(--ui-text);
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+    display: flex; align-items: center; justify-content: center;
+    font-family: Arial, sans-serif;
+  }
+  #btn-bold  { font-weight: bold; }
+  #btn-italic { font-style: italic; }
+  .fmt-btn:hover { background: #333; }
+  .fmt-btn.active {
+    background: #2a3a1a;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── STATUS BAR ── */
+  #statusbar {
+    height: 26px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 20px;
+    font-size: 10px;
+    color: var(--muted);
+    flex-shrink: 0;
+    font-family: Arial, sans-serif;
+  }
+  #statusbar span b { color: var(--accent2); font-weight: 600; }
+
+  /* ── CANVAS AREA ── */
+  #canvas-wrap {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    background: #888; /* grey surround outside white canvas */
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  /* The white page */
+  #canvas {
+    position: relative;
+    width: 1200px;
+    min-height: 800px;
+    background: #ffffff;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+    margin: 24px auto;
+    flex-shrink: 0;
+  }
+
+  /* ── ELEMENT BASE ── */
+  .elem {
+    position: absolute;
+    cursor: move;
+    outline: none;
+  }
+  .elem.selected > .elem-frame {
+    border-color: #1a7ae0;
+    box-shadow: 0 0 0 1px #1a7ae0;
+  }
+  .elem:not(.selected) > .elem-frame { border-color: #aaa; }
+
+  .elem-frame {
+    width: 100%;
+    height: 100%;
+    border: 1.5px dashed #aaa;
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── IMAGE ELEMENT ── */
+  .elem-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+  }
+
+  /* ── TEXT ELEMENT ── */
+  .elem-text .elem-frame { background: rgba(26,122,224,0.04); }
+
+  .text-content {
+    width: 100%;
+    height: 100%;
+    padding: 8px 10px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: #000000;
+    line-height: 1.55;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    overflow: auto;
+    outline: none;
+    background: none;
+    border: none;
+    resize: none;
+    cursor: text;
+  }
+  .text-content:focus { cursor: text; }
+
+  /* ── RESIZE HANDLE ── */
+  .resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: #1a7ae0;
+    border: 2px solid #fff;
+    border-radius: 2px;
+    z-index: 10;
+  }
+  .rh-se { bottom: -6px; right: -6px; cursor: se-resize; }
+  .rh-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+  .rh-ne { top: -6px; right: -6px; cursor: ne-resize; }
+  .rh-nw { top: -6px; left: -6px; cursor: nw-resize; }
+  .rh-n  { top: -6px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+  .rh-s  { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+  .rh-e  { top: 50%; right: -6px; transform: translateY(-50%); cursor: e-resize; }
+  .rh-w  { top: 50%; left: -6px; transform: translateY(-50%); cursor: w-resize; }
+  .elem:not(.selected) .resize-handle { display: none; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--accent);
+    color: #000;
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 7px 18px;
+    border-radius: 20px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  #file-input { display: none; }
+  #img-input  { display: none; }
+</style>
+</head>
+<body>
+
+<input type="file" id="file-input" accept=".png">
+<input type="file" id="img-input"  accept="image/*">
+
+<!-- Menubar -->
+<div id="menubar">
+
+  <div class="menu-item" id="menu-file">
+    <button class="menu-btn" onclick="toggleMenu('file')">File</button>
+    <div class="dropdown" id="dd-file">
+      <div class="dd-item" onclick="actionNew()">
+        <span class="dd-icon">✦</span> New <span class="dd-key">Ctrl N</span>
+      </div>
+      <div class="dd-item" onclick="actionOpen()">
+        <span class="dd-icon">⊙</span> Open <span class="dd-key">Ctrl O</span>
+      </div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" onclick="actionSave()">
+        <span class="dd-icon">↓</span> Save as PNG <span class="dd-key">Ctrl S</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-item" id="menu-insert">
+    <button class="menu-btn" onclick="toggleMenu('insert')">Insert</button>
+    <div class="dropdown" id="dd-insert">
+      <div class="dd-item" onclick="actionInsertImage()">
+        <span class="dd-icon">⊞</span> Image
+      </div>
+      <div class="dd-item" onclick="actionInsertText()">
+        <span class="dd-icon">⊤</span> Text Box
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Text Formatting Toolbar -->
+<div id="text-toolbar">
+  <span class="tb-label">Text:</span>
+
+  <!-- Font size -->
+  <div id="font-size-wrap">
+    <button id="font-size-down" onclick="changeFontSize(-1)" title="Decrease size">−</button>
+    <span id="font-size-display">14</span>
+    <button id="font-size-up"   onclick="changeFontSize(+1)" title="Increase size">+</button>
+    <span class="tb-label" style="margin-left:2px">pt</span>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <!-- Bold -->
+  <button class="fmt-btn" id="btn-bold" onclick="toggleBold()" title="Bold (Ctrl+B)">B</button>
+  <!-- Italic -->
+  <button class="fmt-btn" id="btn-italic" onclick="toggleItalic()" title="Italic (Ctrl+I)">I</button>
+
+  <div class="tb-sep"></div>
+  <span class="tb-label" style="color:#444; font-size:10px">Select a text box to format</span>
+
+  <!-- Canvas size controls pushed to the right -->
+  <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+    <span class="tb-label" style="color:#888;">Canvas:</span>
+    <span class="tb-label">W</span>
+    <input id="canvas-w" type="number" value="1200" min="100" max="9999"
+      title="Canvas width in pixels"
+      style="width:60px; background:#1e1e1e; border:1px solid var(--border); color:var(--accent2);
+             font-family:Arial,sans-serif; font-size:12px; padding:2px 5px; border-radius:4px;
+             text-align:center; outline:none;">
+    <span class="tb-label">H</span>
+    <input id="canvas-h" type="number" value="800" min="100" max="9999"
+      title="Canvas height in pixels"
+      style="width:60px; background:#1e1e1e; border:1px solid var(--border); color:var(--accent2);
+             font-family:Arial,sans-serif; font-size:12px; padding:2px 5px; border-radius:4px;
+             text-align:center; outline:none;">
+    <button onclick="applyCanvasSize()"
+      style="padding:3px 10px; background:var(--border); border:1px solid #444; color:var(--ui-text);
+             font-family:Arial,sans-serif; font-size:11px; border-radius:4px; cursor:pointer;
+             transition:background 0.1s;"
+      onmouseover="this.style.background='#444'" onmouseout="this.style.background='var(--border)'"
+      title="Apply canvas size">Apply</button>
+    <span class="tb-label" style="font-size:10px; color:#555;">px</span>
+  </div>
+</div>
+
+<!-- Canvas -->
+<div id="canvas-wrap">
+  <div id="canvas"></div>
+</div>
+
+<!-- Statusbar -->
+<div id="statusbar">
+  <span>Elements: <b id="st-count">0</b></span>
+  <span>Selected: <b id="st-sel">none</b></span>
+  <span id="st-pos"></span>
+  <span style="margin-left:auto; color:#333; font-size:10px">Click to select · Drag to move · Handles to resize · Del to remove</span>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+let elements    = [];
+let selected    = null;
+let elemCounter = 0;
+
+// Global text formatting state
+let globalFontSize = 14;
+let globalBold     = false;
+let globalItalic   = false;
+
+const canvas   = document.getElementById('canvas');
+const stCount  = document.getElementById('st-count');
+const stSel    = document.getElementById('st-sel');
+const stPos    = document.getElementById('st-pos');
+const fSizeDisp = document.getElementById('font-size-display');
+const btnBold  = document.getElementById('btn-bold');
+const btnItalic= document.getElementById('btn-italic');
+
+// ─────────────────────────────────────────────
+//  FONT SIZE CONTROL
+// ─────────────────────────────────────────────
+function changeFontSize(delta) {
+  globalFontSize = Math.min(120, Math.max(6, globalFontSize + delta));
+  fSizeDisp.textContent = globalFontSize;
+  applyFormattingToSelected();
+}
+
+function toggleBold() {
+  globalBold = !globalBold;
+  btnBold.classList.toggle('active', globalBold);
+  applyFormattingToSelected();
+}
+
+function toggleItalic() {
+  globalItalic = !globalItalic;
+  btnItalic.classList.toggle('active', globalItalic);
+  applyFormattingToSelected();
+}
+
+function applyFormattingToSelected() {
+  if (!selected || selected.type !== 'text') return;
+  const ta = selected.el.querySelector('textarea');
+  applyFormattingToTextarea(ta);
+}
+
+function applyFormattingToTextarea(ta) {
+  ta.style.fontSize   = globalFontSize + 'px';
+  ta.style.fontWeight = globalBold   ? 'bold'   : 'normal';
+  ta.style.fontStyle  = globalItalic ? 'italic' : 'normal';
+}
+
+function syncToolbarToSelected() {
+  if (!selected || selected.type !== 'text') return;
+  const ta = selected.el.querySelector('textarea');
+  // Read current styles back into toolbar
+  const sz = parseInt(ta.style.fontSize) || globalFontSize;
+  globalFontSize = sz;
+  fSizeDisp.textContent = sz;
+  globalBold   = ta.style.fontWeight === 'bold';
+  globalItalic = ta.style.fontStyle  === 'italic';
+  btnBold.classList.toggle('active', globalBold);
+  btnItalic.classList.toggle('active', globalItalic);
+}
+
+// Keyboard shortcuts for bold/italic while typing
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'b') { e.preventDefault(); toggleBold(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'i') { e.preventDefault(); toggleItalic(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); actionNew(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'o') { e.preventDefault(); actionOpen(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); actionSave(); }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement.tagName !== 'TEXTAREA') {
+    removeSelected();
+  }
+  if (e.key === 'Escape') deselect();
+});
+
+// ─────────────────────────────────────────────
+//  MENU
+// ─────────────────────────────────────────────
+function toggleMenu(name) {
+  const dd  = document.getElementById('dd-' + name);
+  const btn = document.querySelector('#menu-' + name + ' .menu-btn');
+  const open = dd.classList.contains('visible');
+  closeAllMenus();
+  if (!open) { dd.classList.add('visible'); btn.classList.add('open'); }
+}
+function closeAllMenus() {
+  document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('visible'));
+  document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('open'));
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.menu-item')) closeAllMenus();
+});
+
+// ─────────────────────────────────────────────
+//  FILE ACTIONS
+// ─────────────────────────────────────────────
+function actionNew() {
+  closeAllMenus();
+  if (elements.length && !confirm('Start a new canvas? Unsaved changes will be lost.')) return;
+  canvas.innerHTML = '';
+  elements = [];
+  selected = null;
+  updateStatus();
+  toast('New canvas');
+}
+
+function actionOpen() {
+  closeAllMenus();
+  document.getElementById('file-input').click();
+}
+
+document.getElementById('file-input').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const cw = canvas.offsetWidth;
+    const scale = Math.min(cw / img.width, 1);
+    const w = Math.round(img.width  * scale);
+    const h = Math.round(img.height * scale);
+    const x = Math.round((cw - w) / 2);
+    createImageElement(url, x, 40, w, h, file.name);
+    toast('Opened: ' + file.name);
+  };
+  img.src = url;
+  this.value = '';
+});
+
+function actionSave() {
+  closeAllMenus();
+  deselect();
+  setTimeout(() => {
+    const cw = canvas.offsetWidth;
+    const ch = canvas.offsetHeight;
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = cw;
+    offscreen.height = ch;
+    const ctx = offscreen.getContext('2d');
+
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cw, ch);
+
+    const sorted = [...elements].sort((a,b) => parseInt(a.el.style.zIndex||0) - parseInt(b.el.style.zIndex||0));
+
+    let pending = sorted.filter(e => e.type === 'image').length;
+    const afterImages = () => { drawTextElements(ctx, sorted); finish(); };
+    if (pending === 0) { afterImages(); return; }
+
+    sorted.forEach(e => {
+      if (e.type !== 'image') return;
+      const img = e.el.querySelector('img');
+      const ex = parseInt(e.el.style.left), ey = parseInt(e.el.style.top);
+      const ew = e.el.offsetWidth,          eh = e.el.offsetHeight;
+      const tmp = new Image();
+      tmp.crossOrigin = 'anonymous';
+      tmp.onload  = () => { ctx.drawImage(tmp, ex, ey, ew, eh); if (--pending===0) afterImages(); };
+      tmp.onerror = () => {                                       if (--pending===0) afterImages(); };
+      tmp.src = img.src;
+    });
+
+    function drawTextElements(ctx, sorted) {
+      sorted.forEach(e => {
+        if (e.type !== 'text') return;
+        const ex = parseInt(e.el.style.left), ey = parseInt(e.el.style.top);
+        const ew = e.el.offsetWidth;
+        const ta = e.el.querySelector('textarea');
+        const fs = parseInt(ta.style.fontSize) || 14;
+        const fw = ta.style.fontWeight === 'bold' ? 'bold' : 'normal';
+        const fi = ta.style.fontStyle  === 'italic' ? 'italic' : 'normal';
+        ctx.save();
+        ctx.font = `${fi} ${fw} ${fs}px Arial, sans-serif`;
+        ctx.fillStyle = '#000000';
+        const lh = fs * 1.55;
+        const lines = ta.value.split('\n');
+        lines.forEach((line, i) => {
+          ctx.fillText(line, ex + 10, ey + fs + 8 + i * lh, ew - 20);
+        });
+        ctx.restore();
+      });
+    }
+
+    function finish() {
+      offscreen.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'canvas.png';
+        a.click();
+        toast('Saved as canvas.png');
+      }, 'image/png');
+    }
+  }, 50);
+}
+
+// ─────────────────────────────────────────────
+//  INSERT ACTIONS
+// ─────────────────────────────────────────────
+function actionInsertImage() {
+  closeAllMenus();
+  document.getElementById('img-input').click();
+}
+document.getElementById('img-input').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const cw = canvas.offsetWidth, ch = canvas.offsetHeight;
+  createImageElement(url, Math.round(cw/2-150), Math.round(ch/2-100), 300, 200);
+  toast('Image inserted');
+  this.value = '';
+});
+
+function actionInsertText() {
+  closeAllMenus();
+  const cw = canvas.offsetWidth, ch = canvas.offsetHeight;
+  createTextElement(Math.round(cw/2-130), Math.round(ch/2-60), 260, 120);
+  toast('Text box inserted — click to type');
+}
+
+// ─────────────────────────────────────────────
+//  ELEMENT CREATION
+// ─────────────────────────────────────────────
+function createImageElement(src, x, y, w, h, label) {
+  const id = ++elemCounter;
+  const el = document.createElement('div');
+  el.className = 'elem elem-img';
+  el.dataset.id = id;
+  el.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;z-index:${id}`;
+  el.innerHTML = `
+    <div class="elem-frame">
+      <img src="${src}" alt="${label||'image'}" draggable="false">
+    </div>
+    ${resizeHandles()}
+  `;
+  canvas.appendChild(el);
+  const data = { id, type:'image', el };
+  elements.push(data);
+  attachBehavior(el, data);
+  selectElem(data);
+  updateStatus();
+  return data;
+}
+
+function createTextElement(x, y, w, h) {
+  const id = ++elemCounter;
+  const el = document.createElement('div');
+  el.className = 'elem elem-text';
+  el.dataset.id = id;
+  el.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;z-index:${id}`;
+  el.innerHTML = `
+    <div class="elem-frame">
+      <textarea class="text-content" placeholder="Type here…" spellcheck="false"></textarea>
+    </div>
+    ${resizeHandles()}
+  `;
+  canvas.appendChild(el);
+  // Apply current toolbar formatting immediately
+  const ta = el.querySelector('textarea');
+  applyFormattingToTextarea(ta);
+
+  const data = { id, type:'text', el };
+  elements.push(data);
+  attachBehavior(el, data);
+  selectElem(data);
+  updateStatus();
+  setTimeout(() => ta.focus(), 50);
+  return data;
+}
+
+function resizeHandles() {
+  return ['nw','n','ne','e','se','s','sw','w']
+    .map(d => `<div class="resize-handle rh-${d}" data-dir="${d}"></div>`)
+    .join('');
+}
+
+// ─────────────────────────────────────────────
+//  DRAG & RESIZE
+// ─────────────────────────────────────────────
+function attachBehavior(el, data) {
+  el.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('resize-handle')) return;
+    if (e.target.tagName === 'TEXTAREA') { selectElem(data); return; }
+    e.preventDefault();
+    selectElem(data);
+    startDrag(e, el);
+  });
+  el.querySelectorAll('.resize-handle').forEach(handle => {
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault(); e.stopPropagation();
+      selectElem(data);
+      startResize(e, el, handle.dataset.dir);
+    });
+  });
+}
+
+function startDrag(e, el) {
+  const sx = e.clientX - el.offsetLeft, sy = e.clientY - el.offsetTop;
+  const onMove = ev => {
+    el.style.left = (ev.clientX - sx) + 'px';
+    el.style.top  = (ev.clientY - sy) + 'px';
+    updatePosStatus(el);
+  };
+  const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function startResize(e, el, dir) {
+  const sx=e.clientX, sy=e.clientY, oL=el.offsetLeft, oT=el.offsetTop, oW=el.offsetWidth, oH=el.offsetHeight, MIN=60;
+  const onMove = ev => {
+    const dx=ev.clientX-sx, dy=ev.clientY-sy;
+    let l=oL,t=oT,w=oW,h=oH;
+    if (dir.includes('e')) { w=Math.max(MIN,oW+dx); }
+    if (dir.includes('s')) { h=Math.max(MIN,oH+dy); }
+    if (dir.includes('w')) { w=Math.max(MIN,oW-dx); l=oL+oW-w; }
+    if (dir.includes('n')) { h=Math.max(MIN,oH-dy); t=oT+oH-h; }
+    el.style.left=l+'px'; el.style.top=t+'px'; el.style.width=w+'px'; el.style.height=h+'px';
+    updatePosStatus(el);
+  };
+  const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+document.getElementById('canvas-wrap').addEventListener('mousedown', e => {
+  if (e.target === canvas || e.target.id === 'canvas-wrap') deselect();
+});
+
+// ─────────────────────────────────────────────
+//  SELECTION
+// ─────────────────────────────────────────────
+function selectElem(data) {
+  deselect(false);
+  selected = data;
+  data.el.classList.add('selected');
+  data.el.style.zIndex = ++elemCounter + 100;
+  syncToolbarToSelected();
+  updateStatus();
+}
+
+function deselect(updateSt=true) {
+  if (selected) {
+    selected.el.classList.remove('selected');
+    selected = null;
+    if (updateSt) updateStatus();
+  }
+}
+
+function removeSelected() {
+  if (!selected) return;
+  selected.el.remove();
+  elements = elements.filter(e => e.id !== selected.id);
+  selected = null;
+  updateStatus();
+  toast('Element removed');
+}
+
+// ─────────────────────────────────────────────
+//  STATUS
+// ─────────────────────────────────────────────
+function updateStatus() {
+  stCount.textContent = elements.length;
+  stSel.textContent   = selected ? `#${selected.id} (${selected.type})` : 'none';
+}
+function updatePosStatus(el) {
+  stPos.textContent = `x:${el.offsetLeft} y:${el.offsetTop}  ${el.offsetWidth}×${el.offsetHeight}`;
+}
+
+// ─────────────────────────────────────────────
+//  CANVAS SIZE
+// ─────────────────────────────────────────────
+function applyCanvasSize() {
+  const w = Math.min(9999, Math.max(100, parseInt(document.getElementById('canvas-w').value) || 1200));
+  const h = Math.min(9999, Math.max(100, parseInt(document.getElementById('canvas-h').value) || 800));
+  document.getElementById('canvas-w').value = w;
+  document.getElementById('canvas-h').value = h;
+  canvas.style.width    = w + 'px';
+  canvas.style.minHeight = h + 'px';
+  canvas.style.height   = h + 'px';
+  toast(`Canvas set to ${w} × ${h} px`);
+}
+
+// ─────────────────────────────────────────────
+//  TOAST
+// ─────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
