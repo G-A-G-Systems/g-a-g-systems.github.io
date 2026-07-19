@@ -1,0 +1,279 @@
+<html>
+
+<head>
+
+<meta name="keywords" content="George,A,Georgopoulos,GAG,G,A,G,Systems,web,os,o,s,first,in,the,world,technology,programming,
+    architect,contributors,number,one,">
+
+
+<meta name="description" content="George,A,Georgopoulos INVENTION, G A G Systems,First Web OS in The World">
+
+
+<title> G A G Systems By George A Georgopoulos</title>
+
+<style>
+  :root{
+    --obsidian:      #0b0c0f;
+    --obsidian-2:     #131519;
+    --gold:           #cda45e;
+    --gold-bright:    #f0d59b;
+    --gold-dim:       #8a7239;
+    --ivory:          #efeae2;
+    --hairline:       rgba(205,164,94,0.22);
+  }
+
+  *{ box-sizing:border-box; }
+
+  html, body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+  }
+
+  body{
+    display:flex;
+    flex-direction:column;
+    font-family:"Cormorant Garamond","Georgia",serif;
+    background-color:var(--obsidian);
+    background-image:url('https://images.unsplash.com/photo-1762257284149-9b9bf1f8b0f7?fm=jpg&q=80&w=2400&auto=format&fit=crop');
+    background-size:cover;
+    background-repeat:no-repeat;
+    background-position:center;
+    background-attachment:fixed;
+  }
+
+  /* ---------- stage (iframe) ---------- */
+  .stage{
+    flex:1 1 auto;
+    position:relative;
+    padding:0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(205,164,94,0.10), transparent 60%),
+      linear-gradient(160deg, rgba(11,12,15,0.35) 0%, rgba(10,10,12,0.55) 100%);
+  }
+
+  .stage-frame{
+    width:100%;
+    height:100%;
+    border-radius:0;
+    border:1px solid var(--hairline);
+    border-bottom:none;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.6),
+      0 -6px 30px rgba(205,164,94,0.05) inset,
+      0 20px 60px rgba(0,0,0,0.65);
+    overflow:hidden;
+    background:rgba(14,15,18,0.06);
+    -webkit-backdrop-filter:blur(4px) saturate(150%);
+    backdrop-filter:blur(4px) saturate(150%);
+  }
+
+  .stage-frame iframe{
+    width:100%;
+    height:100%;
+    border:0;
+    display:block;
+    background:transparent;
+  }
+
+  /* ---------- dock ---------- */
+  .dock-wrap{
+    flex:0 0 auto;
+    padding:0;
+  }
+
+  .dock{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    padding:10px 18px;
+    border-radius:0;
+    background:
+      linear-gradient(180deg, rgba(28,30,35,0.05) 0%, rgba(14,15,18,0.07) 100%);
+    border:1px solid var(--hairline);
+    border-top:1px solid rgba(205,164,94,0.35);
+    box-shadow:
+      0 -1px 0 rgba(240,213,155,0.06) inset,
+      0 18px 40px rgba(0,0,0,0.28);
+    -webkit-backdrop-filter:blur(5px) saturate(180%);
+    backdrop-filter:blur(5px) saturate(180%);
+  }
+
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding-right:16px;
+    margin-right:2px;
+    border-right:1px solid var(--hairline);
+    flex:0 0 auto;
+    user-select:none;
+  }
+
+  .brand-mark{
+    font-family:"Cormorant Garamond", serif;
+    font-weight:600;
+    font-size:20px;
+    letter-spacing:0.16em;
+    color:var(--gold-bright);
+    text-shadow:0 0 14px rgba(205,164,94,0.35);
+  }
+
+  .brand-sub{
+    display:none;
+  }
+
+  @media (min-width:760px){
+    .brand-sub{
+      display:block;
+      font-family:"Helvetica Neue", Arial, sans-serif;
+      font-size:9px;
+      letter-spacing:0.24em;
+      color:var(--gold-dim);
+      text-transform:uppercase;
+      margin-top:2px;
+    }
+  }
+
+  .controls{
+    flex:1 1 auto;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  /* shared button skin, but we keep the raw <button>/<a> structure untouched */
+  button, .dock a{
+    text-decoration:none;
+  }
+
+  .dock button{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    font-size:11.5px;
+    font-weight:500;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ivory);
+    background:linear-gradient(180deg, rgba(38,41,48,0.04) 0%, rgba(19,20,25,0.04) 100%);
+    border:1px solid rgba(205,164,94,0.4);
+    border-radius:6px;
+    padding:9px 16px;
+    cursor:pointer;
+    transition:border-color .18s ease, transform .18s ease, box-shadow .18s ease, color .18s ease, background .18s ease;
+    box-shadow:0 1px 0 rgba(255,255,255,0.03) inset;
+    -webkit-backdrop-filter:blur(1px) saturate(180%);
+    backdrop-filter:blur(1px) saturate(180%);
+    text-shadow:0 1px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.7);
+  }
+
+  .dock button:hover{
+    color:var(--gold-bright);
+    border-color:var(--gold);
+    background:linear-gradient(180deg, rgba(48,44,32,0.12) 0%, rgba(24,21,15,0.12) 100%);
+    box-shadow:0 0 0 1px rgba(205,164,94,0.15), 0 6px 16px rgba(205,164,94,0.12);
+    transform:translateY(-1px);
+  }
+
+  .dock button:active{
+    transform:translateY(0);
+  }
+
+  /* Open — the primary action, styled as the gilded key */
+  a[href="programs.html"] button{
+    /*color:#0b0c0f;*/
+      color:white;
+    font-weight:700;
+    /*background:linear-gradient(180deg, rgba(240,213,155,0.22) 0%, rgba(205,164,94,0.22) 55%, rgba(138,114,57,0.22) 100%);*/
+    background:linear-gradient(180deg, rgba(58,214,58,0.55) 0%, rgba(32,150,32,0.55) 100%);  
+    border:1px solid rgba(233,201,136,0.9);
+    box-shadow:0 4px 14px rgba(205,164,94,0.18), 0 1px 0 rgba(255,255,255,0.2) inset;
+    text-shadow:0 1px 3px rgba(255,255,255,0.2);
+  }
+
+  a[href="programs.html"] button:hover{
+    /*background:linear-gradient(180deg, rgba(240,213,155,0.4) 0%, rgba(205,164,94,0.4) 55%, rgba(138,114,57,0.4) 100%);*/
+    background:linear-gradient(180deg, rgba(74,230,74,0.75) 0%, rgba(36,163,36,0.75) 100%);  
+    box-shadow:0 6px 20px rgba(205,164,94,0.32), 0 1px 0 rgba(255,255,255,0.3) inset;
+    transform:translateY(-1px);
+  }
+
+  /* Close — quiet until hovered, then reveals its warning */
+  button[onclick="window.close()"]{
+    background:linear-gradient(180deg, rgba(214,58,58,0.55) 0%, rgba(150,32,32,0.55) 100%);
+    color:#fff5f5;
+    border:1px solid rgba(255,130,130,0.6);
+    text-shadow:0 1px 3px rgba(0,0,0,0.6);
+  }
+
+  button[onclick="window.close()"]:hover{
+    color:#fff;
+    background:linear-gradient(180deg, rgba(230,74,74,0.75) 0%, rgba(163,36,36,0.75) 100%);
+    border-color:#ffb3b3;
+    box-shadow:0 0 0 1px rgba(255,120,120,0.25), 0 6px 16px rgba(200,60,60,0.35);
+  }
+
+  .spacer{
+    flex:0 0 auto;
+    width:1px;
+    align-self:stretch;
+    background:var(--hairline);
+    margin:2px 2px;
+  }
+</style>
+</head>
+
+
+
+
+
+<body topmargin="0" bottommargin="0" leftmargin="0" rightmargin="0">
+
+<div class="stage">
+  <div class="stage-frame">
+    <iframe name="m" width="100%" height="100%" src="home2.html" allowtransparency="true"></iframe>
+  </div>
+</div>
+
+<div class="dock-wrap">
+  <div class="dock">
+
+    <div class="brand">
+      <div>
+        <div class="brand-mark">G·A·G</div>
+        <div class="brand-sub">Systems</div>
+      </div>
+    </div>
+
+    <div class="controls">
+
+      <a href="programs.html" TARGET="m"><button>Start</button></a>
+
+      <a href="settings.html" TARGET="m"><button>Settings</button></a>
+
+      <button id="c1" onclick="window.showDirectoryPicker()">HDD Viewer</button>
+
+      <a href="date-time.html" TARGET="m"><button>Date&amp;Time</button></a>
+
+      <span class="spacer"></span>
+
+      <a href="contributors.html" TARGET="m"><button>Contributors</button></a>
+
+      <a href="copyright.html" TARGET="m"><button>Copyright(s)</button></a>
+
+      <a href="read-me.html" TARGET="m"><button>Read Me</button></a>
+
+      <a href="programming.html" TARGET="m"><button>Programming</button></a>
+
+    </div>
+
+    <button onclick="window.close()"> X </button>
+
+  </div>
+</div>
+
+</body>
+</html>
