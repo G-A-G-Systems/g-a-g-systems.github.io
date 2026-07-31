@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Rental Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EDE7D9;
+    --paper-dark:#E2DAC5;
+    --card:#F5F1E6;
+    --ink:#22283B;
+    --ink-soft:#5A6178;
+    --rule:#C7BFA8;
+    --ongoing:#B23B3B;
+    --returned:#3F6E52;
+    --gold:#9C7A26;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, rgba(0,0,0,0.015) 1px, transparent 1px, transparent 28px);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+  }
+  header{
+    padding:34px 24px 18px;
+    text-align:center;
+    border-bottom:1px solid var(--rule);
+    background:var(--paper-dark);
+  }
+  header h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:clamp(28px, 5vw, 42px);
+    letter-spacing:0.5px;
+    margin:0;
+  }
+  header p{
+    margin:6px 0 0;
+    color:var(--ink-soft);
+    font-size:14px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+  }
+  nav.tabs{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-top:18px;
+  }
+  nav.tabs button{
+    font-family:'Inter', sans-serif;
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:0.4px;
+    padding:9px 16px;
+    border:1px solid var(--rule);
+    background:var(--paper);
+    color:var(--ink);
+    border-bottom:none;
+    border-radius:6px 6px 0 0;
+    cursor:pointer;
+    position:relative;
+    top:1px;
+  }
+  nav.tabs button:hover{ background:var(--card); }
+
+  main{
+    max-width:980px;
+    margin:0 auto;
+    padding:32px 20px 60px;
+    display:grid;
+    grid-template-columns:1.3fr 1fr;
+    gap:24px;
+  }
+  @media (max-width:760px){ main{ grid-template-columns:1fr; } }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    box-shadow:0 1px 0 var(--rule), 0 8px 20px -14px rgba(34,40,59,0.35);
+    padding:22px 22px 24px;
+  }
+  .card h2{
+    font-family:'Fraunces', serif;
+    font-size:19px;
+    margin:0 0 16px;
+    padding-bottom:10px;
+    border-bottom:1px dashed var(--rule);
+  }
+  label{
+    display:block;
+    font-size:12px;
+    letter-spacing:0.6px;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin:14px 0 6px;
+  }
+  input[type=text], input[type=tel], textarea{
+    width:100%;
+    font-family:'Inter', sans-serif;
+    font-size:15px;
+    padding:10px 12px;
+    border:1px solid var(--rule);
+    background:#fff;
+    border-radius:3px;
+    color:var(--ink);
+  }
+  input[type=tel]{ font-family:'IBM Plex Mono', monospace; }
+  textarea{ min-height:110px; resize:vertical; font-family:'Inter', sans-serif; line-height:1.5; }
+  input:focus, textarea:focus, button:focus{ outline:2px solid var(--gold); outline-offset:1px; }
+
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:16px;
+    padding:10px 12px;
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:3px;
+  }
+  .toggle-row input{ width:18px; height:18px; accent-color:var(--ongoing); }
+  .toggle-row span{ font-size:14px; font-weight:500; }
+
+  .form-actions{
+    display:flex;
+    gap:10px;
+    margin-top:20px;
+    flex-wrap:wrap;
+  }
+  button.primary, button.ghost, button.danger{
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    padding:10px 16px;
+    border-radius:4px;
+    cursor:pointer;
+    letter-spacing:0.3px;
+  }
+  button.primary{ background:var(--ink); color:var(--card); border:1px solid var(--ink); }
+  button.primary:hover{ background:#333c58; }
+  button.ghost{ background:transparent; color:var(--ink); border:1px solid var(--rule); }
+  button.ghost:hover{ background:var(--paper); }
+  button.danger{ background:transparent; color:var(--ongoing); border:1px solid var(--ongoing); }
+  button.danger:hover{ background:#fbeceb; }
+
+  .stat-row{ display:flex; gap:12px; margin-bottom:18px; }
+  .stat{
+    flex:1;
+    text-align:center;
+    padding:14px 8px;
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:3px;
+  }
+  .stat b{ display:block; font-family:'Fraunces', serif; font-size:26px; }
+  .stat span{ font-size:11px; letter-spacing:0.5px; text-transform:uppercase; color:var(--ink-soft); }
+
+  .file-actions{ display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+  #fileStatus{ font-size:12px; color:var(--ink-soft); margin-top:8px; min-height:16px; }
+
+  .preview-list{ list-style:none; padding:0; margin:14px 0 0; }
+  .preview-list li{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:9px 4px; border-bottom:1px dashed var(--rule);
+    cursor:pointer; font-size:14px;
+  }
+  .preview-list li:hover{ color:var(--gold); }
+  .stamp{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:1px;
+    padding:2px 7px;
+    border-radius:3px;
+    border:1.5px solid;
+    transform:rotate(-3deg);
+  }
+  .stamp.on{ color:var(--ongoing); border-color:var(--ongoing); }
+  .stamp.off{ color:var(--returned); border-color:var(--returned); }
+
+  dialog{
+    border:1px solid var(--rule);
+    border-radius:6px;
+    padding:0;
+    width:min(520px, 90vw);
+    background:var(--card);
+    color:var(--ink);
+  }
+  dialog::backdrop{ background:rgba(34,40,59,0.45); }
+  .dialog-head{
+    padding:18px 22px;
+    border-bottom:1px dashed var(--rule);
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'Fraunces', serif; font-size:19px;
+  }
+  .dialog-head button{ background:none; border:none; font-size:20px; cursor:pointer; color:var(--ink-soft); }
+  .dialog-body{ padding:18px 22px; max-height:60vh; overflow-y:auto; }
+  .empty-note{ color:var(--ink-soft); font-size:14px; padding:10px 0; }
+
+  .detail-field{ margin-bottom:14px; }
+  .detail-field label{ margin:0 0 4px; }
+  .detail-field div{ font-size:15px; white-space:pre-wrap; }
+  .detail-actions{ display:flex; gap:10px; margin-top:18px; padding-top:14px; border-top:1px dashed var(--rule); }
+
+  footer{ text-align:center; padding:20px; font-size:12px; color:var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>The Rental Ledger</h1>
+  <p>Customer &amp; rental records, kept on paper — digitally</p>
+  <nav class="tabs">
+    <button id="tabNew">New Entry</button>
+    <button id="tabAll">All Records</button>
+    <button id="tabOngoing">Ongoing</button>
+    <button id="tabReturned">Returned</button>
+  </nav>
+</header>
+
+<main>
+  <section class="card" id="formCard">
+    <h2 id="formTitle">New Record</h2>
+    <form id="recordForm">
+      <label for="custName">Customer name</label>
+      <input type="text" id="custName" required placeholder="e.g. Jordan Blake">
+
+      <label for="custPhone">Phone number</label>
+      <input type="tel" id="custPhone" required placeholder="e.g. 0412 345 678">
+
+      <div class="toggle-row">
+        <input type="checkbox" id="custOngoing">
+        <span>Rental currently ongoing</span>
+      </div>
+
+      <label for="custStartDate">Start date</label>
+      <input type="date" id="custStartDate">
+
+      <label for="custReturnDate">Return date</label>
+      <input type="date" id="custReturnDate">
+
+      <label for="custDetails">Rental details</label>
+      <textarea id="custDetails" placeholder="Item(s), dates, price, notes..."></textarea>
+
+      <div class="form-actions">
+        <button type="submit" class="primary" id="saveRecordBtn">Save Record</button>
+        <button type="button" class="ghost" id="clearFormBtn">Clear / New</button>
+        <button type="button" class="danger" id="deleteRecordBtn" style="display:none;">Delete Record</button>
+      </div>
+    </form>
+  </section>
+
+  <section>
+    <div class="card" style="margin-bottom:20px;">
+      <h2>At a Glance</h2>
+      <div class="stat-row">
+        <div class="stat"><b id="statTotal">0</b><span>Total</span></div>
+        <div class="stat"><b id="statOngoing">0</b><span>Ongoing</span></div>
+        <div class="stat"><b id="statReturned">0</b><span>Returned</span></div>
+      </div>
+      <ul class="preview-list" id="previewList"></ul>
+    </div>
+
+    <div class="card">
+      <h2>File</h2>
+      <div class="file-actions">
+        <button class="ghost" id="saveFileBtn">Save to File (Downloads)</button>
+        <button class="ghost" id="loadFileBtn">Load from File</button>
+        <input type="file" id="fileInput" accept="application/json" style="display:none;">
+      </div>
+      <div id="fileStatus"></div>
+    </div>
+  </section>
+</main>
+
+<footer>All data also kept in this browser automatically. Use "Save to File" to keep a copy in Downloads.</footer>
+
+<!-- All Records dialog -->
+<dialog id="allDialog">
+  <div class="dialog-head"><span>All Records (A–Z)</span><button data-close="allDialog">&times;</button></div>
+  <div class="dialog-body"><ul class="preview-list" id="allList"></ul></div>
+</dialog>
+
+<!-- Ongoing dialog -->
+<dialog id="ongoingDialog">
+  <div class="dialog-head"><span>Ongoing Rentals</span><button data-close="ongoingDialog">&times;</button></div>
+  <div class="dialog-body"><ul class="preview-list" id="ongoingList"></ul></div>
+</dialog>
+
+<!-- Returned dialog -->
+<dialog id="returnedDialog">
+  <div class="dialog-head"><span>Returned / Not Ongoing</span><button data-close="returnedDialog">&times;</button></div>
+  <div class="dialog-body"><ul class="preview-list" id="returnedList"></ul></div>
+</dialog>
+
+<!-- Record detail dialog -->
+<dialog id="detailDialog">
+  <div class="dialog-head"><span id="detailName">Record</span><button data-close="detailDialog">&times;</button></div>
+  <div class="dialog-body">
+    <div class="detail-field"><label>Phone number</label><div id="detailPhone"></div></div>
+    <div class="detail-field"><label>Status</label><div id="detailStatus"></div></div>
+    <div class="detail-field"><label>Start date</label><div id="detailStart"></div></div>
+    <div class="detail-field"><label>Return date</label><div id="detailReturn"></div></div>
+    <div class="detail-field"><label>Rental details</label><div id="detailDetails"></div></div>
+    <div class="detail-actions">
+      <button class="primary" id="editFromDetailBtn">Edit</button>
+      <button class="danger" id="deleteFromDetailBtn">Delete</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'rentalLedgerRecords';
+  let records = [];
+  let editingId = null;
+  let fileHandle = null; // File System Access API handle, when supported
+
+  // ---------- persistence (localStorage working cache) ----------
+  function loadLocal(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      records = raw ? JSON.parse(raw) : [];
+    }catch(e){ records = []; }
+  }
+  function saveLocal(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+
+  function uid(){ return 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+
+  // ---------- form ----------
+  const form = document.getElementById('recordForm');
+  const nameInput = document.getElementById('custName');
+  const phoneInput = document.getElementById('custPhone');
+  const ongoingInput = document.getElementById('custOngoing');
+  const startDateInput = document.getElementById('custStartDate');
+  const returnDateInput = document.getElementById('custReturnDate');
+  const detailsInput = document.getElementById('custDetails');
+  const formTitle = document.getElementById('formTitle');
+  const deleteRecordBtn = document.getElementById('deleteRecordBtn');
+
+  function resetForm(){
+    editingId = null;
+    form.reset();
+    formTitle.textContent = 'New Record';
+    deleteRecordBtn.style.display = 'none';
+  }
+
+  function fillForm(rec){
+    editingId = rec.id;
+    nameInput.value = rec.name;
+    phoneInput.value = rec.phone;
+    ongoingInput.checked = !!rec.ongoing;
+    startDateInput.value = rec.startDate || '';
+    returnDateInput.value = rec.returnDate || '';
+    detailsInput.value = rec.details || '';
+    formTitle.textContent = 'Edit Record';
+    deleteRecordBtn.style.display = 'inline-block';
+  }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    const name = nameInput.value.trim();
+    const phone = phoneInput.value.trim();
+    if(!name || !phone) return;
+
+    if(editingId){
+      const rec = records.find(r => r.id === editingId);
+      if(rec){
+        rec.name = name; rec.phone = phone;
+        rec.ongoing = ongoingInput.checked; rec.details = detailsInput.value;
+        rec.startDate = startDateInput.value; rec.returnDate = returnDateInput.value;
+      }
+    }else{
+      records.push({
+        id: uid(), name, phone,
+        ongoing: ongoingInput.checked, details: detailsInput.value,
+        startDate: startDateInput.value, returnDate: returnDateInput.value
+      });
+    }
+    saveLocal();
+    renderAll();
+    resetForm();
+    closeAllDialogs();
+  });
+
+  document.getElementById('clearFormBtn').addEventListener('click', resetForm);
+
+  deleteRecordBtn.addEventListener('click', function(){
+    if(!editingId) return;
+    if(!confirm('Delete this record? This cannot be undone.')) return;
+    records = records.filter(r => r.id !== editingId);
+    saveLocal();
+    renderAll();
+    resetForm();
+  });
+
+  // ---------- tabs / dialogs ----------
+  document.getElementById('tabNew').addEventListener('click', function(){
+    resetForm();
+    document.getElementById('formCard').scrollIntoView({behavior:'smooth', block:'start'});
+  });
+  document.getElementById('tabAll').addEventListener('click', () => openDialog('allDialog'));
+  document.getElementById('tabOngoing').addEventListener('click', () => openDialog('ongoingDialog'));
+  document.getElementById('tabReturned').addEventListener('click', () => openDialog('returnedDialog'));
+
+  document.querySelectorAll('[data-close]').forEach(btn=>{
+    btn.addEventListener('click', () => document.getElementById(btn.dataset.close).close());
+  });
+
+  function openDialog(id){
+    renderDialogLists();
+    document.getElementById(id).showModal();
+  }
+  function closeAllDialogs(){
+    ['allDialog','ongoingDialog','returnedDialog','detailDialog'].forEach(id=>{
+      const d = document.getElementById(id);
+      if(d.open) d.close();
+    });
+  }
+
+  // ---------- rendering ----------
+  function sortedByName(list){
+    return [...list].sort((a,b) => a.name.localeCompare(b.name, undefined, {sensitivity:'base'}));
+  }
+
+  function makeListItem(rec){
+    const li = document.createElement('li');
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = rec.name;
+    const stamp = document.createElement('span');
+    stamp.className = 'stamp ' + (rec.ongoing ? 'on' : 'off');
+    stamp.textContent = rec.ongoing ? 'ONGOING' : 'RETURNED';
+    li.appendChild(nameSpan);
+    li.appendChild(stamp);
+    li.addEventListener('click', () => openDetail(rec.id));
+    return li;
+  }
+
+  function renderDialogLists(){
+    const all = sortedByName(records);
+    const ongoing = sortedByName(records.filter(r => r.ongoing));
+    const returned = sortedByName(records.filter(r => !r.ongoing));
+
+    fillList('allList', all, 'No records yet.');
+    fillList('ongoingList', ongoing, 'No ongoing rentals.');
+    fillList('returnedList', returned, 'No returned rentals.');
+  }
+
+  function fillList(elId, list, emptyText){
+    const el = document.getElementById(elId);
+    el.innerHTML = '';
+    if(list.length === 0){
+      const p = document.createElement('li');
+      p.className = 'empty-note';
+      p.textContent = emptyText;
+      el.appendChild(p);
+      return;
+    }
+    list.forEach(rec => el.appendChild(makeListItem(rec)));
+  }
+
+  function renderPreview(){
+    const el = document.getElementById('previewList');
+    el.innerHTML = '';
+    const recent = sortedByName(records).slice(0, 6);
+    if(recent.length === 0){
+      const p = document.createElement('li');
+      p.className = 'empty-note';
+      p.textContent = 'No records yet — add one on the left.';
+      el.appendChild(p);
+      return;
+    }
+    recent.forEach(rec => el.appendChild(makeListItem(rec)));
+  }
+
+  function renderStats(){
+    document.getElementById('statTotal').textContent = records.length;
+    document.getElementById('statOngoing').textContent = records.filter(r=>r.ongoing).length;
+    document.getElementById('statReturned').textContent = records.filter(r=>!r.ongoing).length;
+  }
+
+  function renderAll(){
+    renderStats();
+    renderPreview();
+    renderDialogLists();
+  }
+
+  // ---------- record detail dialog ----------
+  let detailId = null;
+  function openDetail(id){
+    const rec = records.find(r => r.id === id);
+    if(!rec) return;
+    detailId = id;
+    document.getElementById('detailName').textContent = rec.name;
+    document.getElementById('detailPhone').textContent = rec.phone;
+    const statusEl = document.getElementById('detailStatus');
+    statusEl.innerHTML = '';
+    const stamp = document.createElement('span');
+    stamp.className = 'stamp ' + (rec.ongoing ? 'on' : 'off');
+    stamp.textContent = rec.ongoing ? 'ONGOING' : 'RETURNED';
+    statusEl.appendChild(stamp);
+    document.getElementById('detailStart').textContent = rec.startDate || '(not set)';
+    document.getElementById('detailReturn').textContent = rec.returnDate || '(not set)';
+    document.getElementById('detailDetails').textContent = rec.details || '(no details entered)';
+    document.getElementById('detailDialog').showModal();
+  }
+
+  document.getElementById('editFromDetailBtn').addEventListener('click', function(){
+    const rec = records.find(r => r.id === detailId);
+    if(!rec) return;
+    closeAllDialogs();
+    fillForm(rec);
+    document.getElementById('formCard').scrollIntoView({behavior:'smooth', block:'start'});
+  });
+
+  document.getElementById('deleteFromDetailBtn').addEventListener('click', function(){
+    if(!detailId) return;
+    if(!confirm('Delete this record? This cannot be undone.')) return;
+    records = records.filter(r => r.id !== detailId);
+    saveLocal();
+    renderAll();
+    document.getElementById('detailDialog').close();
+    if(editingId === detailId) resetForm();
+  });
+
+  // ---------- file save / load ----------
+  const fileStatus = document.getElementById('fileStatus');
+  const supportsFSAccess = 'showSaveFilePicker' in window;
+
+  function setStatus(msg){
+    fileStatus.textContent = msg;
+  }
+
+  async function saveToFile(){
+    const json = JSON.stringify(records, null, 2);
+    try{
+      if(supportsFSAccess){
+        if(!fileHandle){
+          fileHandle = await window.showSaveFilePicker({
+            suggestedName: 'rentals-ledger.json',
+            types: [{ description: 'JSON file', accept: {'application/json': ['.json']} }]
+          });
+        }
+        const writable = await fileHandle.createWritable();
+        await writable.write(json);
+        await writable.close();
+        setStatus('Saved to ' + fileHandle.name + ' — future saves update this file directly.');
+      }else{
+        // fallback: trigger a normal browser download (goes to Downloads by default)
+        const blob = new Blob([json], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'rentals-ledger.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setStatus('Downloaded rentals-ledger.json to your Downloads folder.');
+      }
+    }catch(err){
+      if(err.name !== 'AbortError') setStatus('Save failed: ' + err.message);
+    }
+  }
+
+  async function loadFromFile(){
+    try{
+      if(supportsFSAccess){
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'JSON file', accept: {'application/json': ['.json']} }]
+        });
+        fileHandle = handle;
+        const file = await handle.getFile();
+        const text = await file.text();
+        importJSON(text, file.name);
+      }else{
+        document.getElementById('fileInput').click();
+      }
+    }catch(err){
+      if(err.name !== 'AbortError') setStatus('Load failed: ' + err.message);
+    }
+  }
+
+  document.getElementById('fileInput').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => importJSON(reader.result, file.name);
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  function importJSON(text, filename){
+    try{
+      const data = JSON.parse(text);
+      if(!Array.isArray(data)) throw new Error('File does not contain a records list.');
+      records = data.map(r => ({
+        id: r.id || uid(),
+        name: r.name || '',
+        phone: r.phone || '',
+        ongoing: !!r.ongoing,
+        startDate: r.startDate || '',
+        returnDate: r.returnDate || '',
+        details: r.details || ''
+      }));
+      saveLocal();
+      renderAll();
+      resetForm();
+      setStatus('Loaded ' + records.length + ' record(s) from ' + filename + '.');
+    }catch(err){
+      setStatus('Could not read file: ' + err.message);
+    }
+  }
+
+  document.getElementById('saveFileBtn').addEventListener('click', saveToFile);
+  document.getElementById('loadFileBtn').addEventListener('click', loadFromFile);
+
+  // ---------- init ----------
+  loadLocal();
+  renderAll();
+})();
+</script>
+
+</body>
+</html>

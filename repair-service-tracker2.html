@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Repair / Service Tracker</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#16212c; --panel2:#1c2833; --border:#2a3947;
+    --text:#e8edf2; --muted:#8fa3b3; --accent:#4fa8e0; --accent2:#3d8bc4;
+    --green:#3fb87f; --red:#e0574f; --amber:#e0a94f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:24px;
+  }
+  h1{font-size:22px; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:20px;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:20px; max-width:640px; margin-bottom:20px;
+  }
+  label{display:block; font-size:13px; color:var(--muted); margin:12px 0 6px;}
+  input[type=text], input[type=tel], textarea{
+    width:100%; padding:10px 12px; border-radius:7px; border:1px solid var(--border);
+    background:var(--panel2); color:var(--text); font-size:14px; font-family:inherit;
+  }
+  textarea{min-height:90px; resize:vertical;}
+  .row{display:flex; align-items:center; gap:8px; margin-top:14px;}
+  .row input[type=checkbox]{width:18px; height:18px;}
+  .row label{margin:0; color:var(--text); font-size:14px;}
+  .btns{display:flex; flex-wrap:wrap; gap:10px; margin-top:18px;}
+  button{
+    background:var(--accent); color:#08131c; border:none; padding:10px 16px;
+    border-radius:7px; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  button:hover{background:var(--accent2);}
+  button.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--border);}
+  button.secondary:hover{background:#243543;}
+  button.danger{background:var(--red); color:#fff;}
+  .filebar{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;}
+  #status{font-size:12px; color:var(--muted); margin-top:10px;}
+  dialog{
+    background:var(--panel); color:var(--text); border:1px solid var(--border);
+    border-radius:10px; padding:0; width:min(520px,92vw); max-height:80vh;
+  }
+  dialog::backdrop{background:rgba(0,0,0,.6);}
+  .dlg-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 20px; border-bottom:1px solid var(--border);
+  }
+  .dlg-head h2{font-size:16px; margin:0;}
+  .dlg-body{padding:12px 20px 20px; overflow-y:auto; max-height:60vh;}
+  .rec-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 4px; border-bottom:1px solid var(--border); cursor:pointer;
+  }
+  .rec-item:hover{background:var(--panel2);}
+  .rec-item .name{font-weight:600;}
+  .badge{font-size:11px; padding:3px 8px; border-radius:20px;}
+  .badge.done{background:rgba(63,184,127,.15); color:var(--green);}
+  .badge.undone{background:rgba(224,169,79,.15); color:var(--amber);}
+  .close-x{background:transparent; color:var(--muted); font-size:18px; padding:2px 8px;}
+  .empty{color:var(--muted); font-size:14px; padding:12px 4px;}
+  .detail-field{margin-bottom:12px;}
+  .detail-field .k{font-size:12px; color:var(--muted);}
+  .detail-field .v{font-size:15px; white-space:pre-wrap;}
+</style>
+</head>
+<body>
+
+<h1>Repair / Service Tracker</h1>
+<div class="sub">Records auto-save in this browser. Use Save/Load to back up to or restore from a file.</div>
+
+<div class="filebar">
+  <button id="btnSaveFile">💾 Save to File (Downloads)</button>
+  <button class="secondary" id="btnLoadFile">📂 Load from File</button>
+  <input type="file" id="fileInput" accept="application/json" style="display:none">
+</div>
+
+<div class="card">
+  <label>Customer Name</label>
+  <input type="text" id="fName" placeholder="e.g. John Smith">
+
+  <label>Phone Number</label>
+  <input type="tel" id="fPhone" placeholder="e.g. 0412 345 678">
+
+  <label>Worker Name</label>
+  <input type="text" id="fWorker" placeholder="e.g. Mike Johnson">
+
+  <div class="row">
+    <input type="checkbox" id="fDone">
+    <label for="fDone">Job Done</label>
+  </div>
+
+  <label>Job Details</label>
+  <textarea id="fDetails" placeholder="Describe the repair / service..."></textarea>
+
+  <div class="btns">
+    <button id="btnSave">Save Record</button>
+    <button class="secondary" id="btnClear">New / Clear</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<div class="btns">
+  <button class="secondary" id="btnAll">📋 All Records</button>
+  <button class="secondary" id="btnUndone">🟠 Jobs Undone</button>
+  <button class="secondary" id="btnDone">🟢 Jobs Done</button>
+</div>
+
+<!-- List dialog (reused for All / Done / Undone) -->
+<dialog id="listDialog">
+  <div class="dlg-head">
+    <h2 id="listTitle">Records</h2>
+    <button class="close-x" data-close="listDialog">✕</button>
+  </div>
+  <div class="dlg-body" id="listBody"></div>
+</dialog>
+
+<!-- Full record detail dialog -->
+<dialog id="detailDialog">
+  <div class="dlg-head">
+    <h2>Record Details</h2>
+    <button class="close-x" data-close="detailDialog">✕</button>
+  </div>
+  <div class="dlg-body" id="detailBody"></div>
+</dialog>
+
+<script>
+const STORAGE_KEY = 'repairServiceRecords';
+let records = [];
+let editingId = null;
+
+function loadFromStorage(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    records = raw ? JSON.parse(raw) : [];
+  }catch(e){ records = []; }
+}
+function saveToStorage(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+function setStatus(msg){
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 3000);
+}
+function uid(){ return 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+
+// ---- Form handling ----
+const fName = document.getElementById('fName');
+const fPhone = document.getElementById('fPhone');
+const fWorker = document.getElementById('fWorker');
+const fDone = document.getElementById('fDone');
+const fDetails = document.getElementById('fDetails');
+
+function clearForm(){
+  fName.value=''; fPhone.value=''; fWorker.value=''; fDone.checked=false; fDetails.value='';
+  editingId = null;
+}
+
+document.getElementById('btnClear').addEventListener('click', clearForm);
+
+document.getElementById('btnSave').addEventListener('click', ()=>{
+  const name = fName.value.trim();
+  if(!name){ setStatus('Please enter a customer name.'); return; }
+  if(editingId){
+    const rec = records.find(r=>r.id===editingId);
+    if(rec){
+      rec.name = name;
+      rec.phone = fPhone.value.trim();
+      rec.worker = fWorker.value.trim();
+      rec.done = fDone.checked;
+      rec.details = fDetails.value;
+    }
+  } else {
+    records.push({
+      id: uid(),
+      name,
+      phone: fPhone.value.trim(),
+      worker: fWorker.value.trim(),
+      done: fDone.checked,
+      details: fDetails.value
+    });
+  }
+  saveToStorage();
+  clearForm();
+  setStatus('Record saved.');
+});
+
+// ---- Dialog helpers ----
+document.querySelectorAll('[data-close]').forEach(btn=>{
+  btn.addEventListener('click', ()=> document.getElementById(btn.dataset.close).close());
+});
+
+function openList(filter, title){
+  const listDialog = document.getElementById('listDialog');
+  const listBody = document.getElementById('listBody');
+  document.getElementById('listTitle').textContent = title;
+
+  let items = records.slice();
+  if(filter==='done') items = items.filter(r=>r.done);
+  if(filter==='undone') items = items.filter(r=>!r.done);
+  items.sort((a,b)=> a.name.localeCompare(b.name, undefined, {sensitivity:'base'}));
+
+  listBody.innerHTML = '';
+  if(items.length===0){
+    listBody.innerHTML = '<div class="empty">No records to show.</div>';
+  } else {
+    items.forEach(r=>{
+      const div = document.createElement('div');
+      div.className='rec-item';
+      div.innerHTML = `<span class="name">${escapeHtml(r.name)}</span>
+        <span class="badge ${r.done?'done':'undone'}">${r.done?'Done':'Undone'}</span>`;
+      div.addEventListener('click', ()=>{ listDialog.close(); openDetail(r.id); });
+      listBody.appendChild(div);
+    });
+  }
+  listDialog.showModal();
+}
+
+document.getElementById('btnAll').addEventListener('click', ()=>openList('all','All Records'));
+document.getElementById('btnDone').addEventListener('click', ()=>openList('done','Jobs Done'));
+document.getElementById('btnUndone').addEventListener('click', ()=>openList('undone','Jobs Undone'));
+
+function openDetail(id){
+  const rec = records.find(r=>r.id===id);
+  if(!rec) return;
+  const body = document.getElementById('detailBody');
+  body.innerHTML = `
+    <div class="detail-field"><div class="k">Customer Name</div><div class="v">${escapeHtml(rec.name)}</div></div>
+    <div class="detail-field"><div class="k">Phone Number</div><div class="v">${escapeHtml(rec.phone||'—')}</div></div>
+    <div class="detail-field"><div class="k">Worker Name</div><div class="v">${escapeHtml(rec.worker||'—')}</div></div>
+    <div class="detail-field"><div class="k">Status</div><div class="v"><span class="badge ${rec.done?'done':'undone'}">${rec.done?'Done':'Undone'}</span></div></div>
+    <div class="detail-field"><div class="k">Job Details</div><div class="v">${escapeHtml(rec.details||'—')}</div></div>
+    <div class="btns">
+      <button id="btnEdit">Edit</button>
+      <button class="secondary" id="btnToggleDone">${rec.done?'Mark Undone':'Mark Done'}</button>
+      <button class="danger" id="btnDelete">Delete</button>
+    </div>
+  `;
+  body.querySelector('#btnEdit').addEventListener('click', ()=>{
+    fName.value = rec.name; fPhone.value = rec.phone; fWorker.value = rec.worker; fDone.checked = rec.done; fDetails.value = rec.details;
+    editingId = rec.id;
+    document.getElementById('detailDialog').close();
+    window.scrollTo({top:0, behavior:'smooth'});
+    setStatus('Editing — update fields above and click Save Record.');
+  });
+  body.querySelector('#btnToggleDone').addEventListener('click', ()=>{
+    rec.done = !rec.done;
+    saveToStorage();
+    openDetail(id);
+  });
+  body.querySelector('#btnDelete').addEventListener('click', ()=>{
+    if(confirm(`Delete record for "${rec.name}"? This cannot be undone.`)){
+      records = records.filter(r=>r.id!==id);
+      saveToStorage();
+      document.getElementById('detailDialog').close();
+      setStatus('Record deleted.');
+    }
+  });
+  document.getElementById('detailDialog').showModal();
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str==null?'':String(str);
+  return d.innerHTML;
+}
+
+// ---- Save to / Load from file ----
+document.getElementById('btnSaveFile').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(records, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'repair-service-records.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setStatus('File saved to your Downloads folder.');
+});
+
+document.getElementById('btnLoadFile').addEventListener('click', ()=>{
+  document.getElementById('fileInput').click();
+});
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!Array.isArray(data)) throw new Error('Invalid file format');
+      records = data.map(r=>({
+        id: r.id || uid(),
+        name: r.name || '',
+        phone: r.phone || '',
+        worker: r.worker || '',
+        done: !!r.done,
+        details: r.details || ''
+      }));
+      saveToStorage();
+      setStatus(`Loaded ${records.length} record(s) from file.`);
+    }catch(err){
+      setStatus('Could not read that file — is it a valid saved records file?');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ---- init ----
+loadFromStorage();
+</script>
+</body>
+</html>
