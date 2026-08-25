@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>G A G Systems - Print Text File V1 </title>
+    <style>
+        /* 1. Normal screen layout styles */
+        .print-only-container {
+            display: none;
+            white-space: pre-wrap; /* Keeps line breaks and spaces intact */
+        }
+
+        /* 2. Print styles */
+        @media print {
+            /* Hide every element on the page */
+
+body * {
+                display: none !important;
+            }
+            
+            /* Show only the container holding our textarea text */
+            .print-only-container, .print-only-container * {
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body bgcolor="lightgrey">
+
+    <!--
+    <h1>This title will be hidden during print</h1>
+    <p>This paragraph will also be hidden.</p>
+-->
+
+<!-- Your textarea -->
+    <textarea id="myTextarea" rows="20" cols="100"></textarea>
+    
+    <br><br>
+    <input type="file" id="fileInputid"> <button onclick="prepareAndPrint()">Print Text File</button>
+<br><br>
+    <Font size="7"><b>G A G Systems</b> - Print Text File V1</font>
+    <br>
+    <b>By George A Georgopoulos & Gemini-AI</b>
+<br><br>
+<b>G A G Systems,</b> Agia Mavra, Tragano Ilias, GREECE<br>
+<br><br>
+
+    
+    <!-- Hidden element used strictly to capture and display full text during print -->
+    <div id="printContainer" class="print-only-container"></div>
+
+
+<script>
+        function prepareAndPrint() {
+            const textareaValue = document.getElementById('myTextarea').value;
+            const printContainer = document.getElementById('printContainer');
+            
+            // Sync the textarea text to the printable div container
+            printContainer.textContent = textareaValue;
+            
+            // Open the system print dialog
+            window.print();
+        }
+    
+
+
+    //-----------------------------------------------------------------------------------
+const filehandle = document.getElementById('fileInputid');
+  const myTextarea = document.getElementById('myTextarea');
+
+  // Listen for when a user selects a file
+  filehandle.addEventListener
+(
+'change', () => 
+{
+    const file = filehandle.files[0]; // Get the first selected file
+
+  // if file true found
+    if (file) 
+    {
+        //create file object reader
+      const reader = new FileReader();
+
+      // read file until end of file and load it on memory
+      reader.onload = (end) => 
+      {
+        myTextarea.value = end.target.result; // Put the text into the textarea
+      }
+
+      // Read the file as plain text / convert loaded file into text
+      reader.readAsText(file);
+    }
+  
+  
+}
+    
+);
+
+//------------------------------------------------------------------------------------------
+
+
+
+
+
+
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
