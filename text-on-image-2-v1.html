@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Text on Image</title>
+<style>
+  :root{
+    --bg: #17181A;
+    --panel: #1F2124;
+    --panel-line: #2C2F33;
+    --ink: #EDEEEF;
+    --ink-dim: #9A9DA3;
+    --accent: #E8A33D;
+    --accent-ink: #17181A;
+    --danger: #D9614F;
+    --field: #242628;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; height:100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .app{
+    display:flex;
+    height:100vh;
+    min-height: 560px;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width: 300px;
+    min-width: 260px;
+    background: var(--panel);
+    border-right: 1px solid var(--panel-line);
+    padding: 22px 20px 28px;
+    overflow-y: auto;
+  }
+  .brand{
+    font-size: 15px;
+    letter-spacing: 0.2px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .brand span{ color: var(--accent); }
+  .brand-sub{
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin-bottom: 22px;
+  }
+  .section{
+    border-top: 1px solid var(--panel-line);
+    padding-top: 16px;
+    margin-top: 16px;
+  }
+  .section:first-of-type{ border-top: none; margin-top: 0; padding-top: 0; }
+  .section-title{
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    margin-bottom: 10px;
+  }
+  label.field-label{
+    display:block;
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin-bottom: 5px;
+  }
+  .row{ display:flex; gap:10px; margin-bottom:10px; }
+  .row > div{ flex:1; min-width:0; }
+
+  select{
+    width:100%;
+    background: var(--field);
+    border: 1px solid var(--panel-line);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 8px 9px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  select:focus{ outline:none; border-color: var(--accent); }
+
+  input[type="text"], input[type="number"], textarea{
+    width:100%;
+    background: var(--field);
+    border: 1px solid var(--panel-line);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 8px 9px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  textarea{ resize: vertical; min-height: 54px; }
+  input[type="text"]:focus, input[type="number"]:focus, textarea:focus{
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  input[type="color"]{
+    -webkit-appearance:none; appearance:none;
+    width: 40px; height: 32px;
+    border: 1px solid var(--panel-line);
+    border-radius: 6px;
+    background: var(--field);
+    padding:2px;
+    cursor:pointer;
+  }
+  input[type="color"]::-webkit-color-swatch{ border-radius:4px; border:none; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    gap:6px;
+    background: var(--field);
+    border: 1px solid var(--panel-line);
+    color: var(--ink);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color .15s ease;
+  }
+  .btn:hover{ border-color: #454A50; }
+  .btn:active{ transform: translateY(1px); }
+  .btn.full{ width:100%; }
+  .btn.primary{
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .btn.primary:hover{ filter: brightness(1.06); }
+  .btn.danger{ color: var(--danger); border-color: #4a2c27; }
+  .btn.toggle.active{
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+  .btn-row{ display:flex; gap:8px; }
+  .btn-row .btn{ flex:1; }
+
+  input[type="file"]{ display:none; }
+
+  .checkbox-row{
+    display:flex; align-items:center; gap:8px;
+    font-size: 12px; color: var(--ink-dim);
+    margin-top: 6px;
+  }
+  .checkbox-row input{ accent-color: var(--accent); }
+
+  .hint{
+    font-size: 11px;
+    color: var(--ink-dim);
+    line-height:1.5;
+    margin-top:10px;
+  }
+
+  .empty-note{
+    font-size: 12px;
+    color: var(--ink-dim);
+    padding: 10px 0 4px;
+  }
+
+  /* ---------- Canvas stage ---------- */
+  .stage{
+    flex:1;
+    display:flex;
+    padding: 28px;
+    overflow: auto;
+    background:
+      linear-gradient(45deg, #202224 25%, transparent 25%) -14px 0/28px 28px,
+      linear-gradient(-45deg, #202224 25%, transparent 25%) -14px 0/28px 28px,
+      linear-gradient(45deg, transparent 75%, #202224 75%) -14px 0/28px 28px,
+      linear-gradient(-45deg, transparent 75%, #202224 75%) -14px 0/28px 28px,
+      #1B1C1E;
+  }
+  .canvas-wrap{
+    position:relative;
+    margin: auto; /* centers when small, keeps content scrollable-into-view when larger than the stage */
+    box-shadow: 0 12px 34px rgba(0,0,0,.45);
+    line-height:0;
+  }
+  #cv{
+    background:#000;
+    cursor: default;
+    display:block;
+  }
+  .stage-empty{
+    margin: auto;
+    color: var(--ink-dim);
+    font-size: 14px;
+    text-align:center;
+  }
+  .stage-empty .btn{ margin-top:14px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <div class="sidebar">
+    <div class="brand">Text <span>on</span> Image</div>
+    <div class="brand-sub">Load a photo, drop in some text, move it into place.</div>
+
+    <!-- Load / Save -->
+    <div class="section">
+      <div class="section-title">Image</div>
+      <button class="btn full primary" id="loadBtn">Load image…</button>
+      <input type="file" id="fileInput" accept="image/*">
+      <button class="btn full" id="saveBtn" style="margin-top:8px;">Save to downloads</button>
+    </div>
+
+    <!-- Resize -->
+    <div class="section">
+      <div class="section-title">Canvas size</div>
+      <div class="row">
+        <div>
+          <label class="field-label">Width (px)</label>
+          <input type="number" id="widthInput" min="1" max="8000">
+        </div>
+        <div>
+          <label class="field-label">Height (px)</label>
+          <input type="number" id="heightInput" min="1" max="8000">
+        </div>
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="lockAspect" checked>
+        Lock aspect ratio
+      </label>
+      <div class="hint" style="margin-top:8px;">
+        Up to 8000px per side. Larger images may need scrolling in the canvas area to see the full picture.
+      </div>
+    </div>
+
+    <!-- Add text -->
+    <div class="section">
+      <div class="section-title">Text</div>
+      <label class="field-label">Content</label>
+      <textarea id="textContent" placeholder="Type something…">Your text here</textarea>
+
+      <label class="field-label" style="margin-top:10px;">Font</label>
+      <select id="fontFamily">
+        <option value="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">System sans-serif</option>
+        <option value="Arial, Helvetica, sans-serif">Arial</option>
+        <option value="Verdana, Geneva, sans-serif">Verdana</option>
+        <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+        <option value="Impact, Haettenschweiler, sans-serif">Impact</option>
+        <option value="Georgia, 'Times New Roman', serif">Georgia</option>
+        <option value="'Times New Roman', Times, serif">Times New Roman</option>
+        <option value="Palatino, 'Palatino Linotype', serif">Palatino</option>
+        <option value="Garamond, serif">Garamond</option>
+        <option value="'Courier New', Courier, monospace">Courier New</option>
+        <option value="'Comic Sans MS', 'Comic Sans', cursive">Comic Sans MS</option>
+        <option value="cursive">Cursive (system)</option>
+      </select>
+
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label class="field-label">Size (px)</label>
+          <input type="number" id="fontSize" value="48" min="4">
+        </div>
+        <div>
+          <label class="field-label">Color</label>
+          <input type="color" id="fontColor" value="#ffffff">
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-bottom:10px;">
+        <button class="btn toggle" id="boldBtn"><b>B</b></button>
+        <button class="btn toggle" id="italicBtn"><i>I</i></button>
+      </div>
+
+      <div class="row">
+        <div>
+          <label class="field-label">Rotation (°)</label>
+          <input type="number" id="rotInput" value="0">
+        </div>
+      </div>
+
+      <button class="btn full primary" id="addTextBtn">+ Add text box</button>
+
+      <div id="selectedControls" style="display:none; margin-top:14px;">
+        <div class="hint" style="margin-top:0;">Editing selected text box. Drag it on the canvas to move, drag the top handle to rotate.</div>
+        <button class="btn full danger" id="deleteTextBtn" style="margin-top:10px;">Delete selected</button>
+      </div>
+      <div class="empty-note" id="noSelectionNote">Click a text box on the canvas to edit it, or add a new one above.</div>
+    </div>
+
+    <div class="hint">
+      Everything happens locally in your browser — nothing is uploaded anywhere.
+    </div>
+  </div>
+
+  <!-- ============ CANVAS STAGE ============ -->
+  <div class="stage" id="stage">
+    <div class="stage-empty" id="stageEmpty">
+      No image loaded yet.<br>
+      <button class="btn primary" id="loadBtn2">Load an image to begin</button>
+    </div>
+    <div class="canvas-wrap" id="canvasWrap" style="display:none;">
+      <canvas id="cv"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- State ----------
+  const state = {
+    img: null,           // HTMLImageElement
+    canvasW: 0,
+    canvasH: 0,
+    texts: [],            // {id, text, sizeFrac, color, bold, italic, rotation, xFrac, yFrac}
+    selectedId: null,
+    nextId: 1,
+    drag: null            // {type:'move'|'rotate', id, ...}
+  };
+
+  // ---------- Elements ----------
+  const fileInput   = document.getElementById('fileInput');
+  const loadBtn     = document.getElementById('loadBtn');
+  const loadBtn2    = document.getElementById('loadBtn2');
+  const saveBtn     = document.getElementById('saveBtn');
+  const widthInput  = document.getElementById('widthInput');
+  const heightInput = document.getElementById('heightInput');
+  const lockAspect  = document.getElementById('lockAspect');
+  const textContent = document.getElementById('textContent');
+  const fontFamily  = document.getElementById('fontFamily');
+  const fontSize    = document.getElementById('fontSize');
+  const fontColor   = document.getElementById('fontColor');
+  const boldBtn     = document.getElementById('boldBtn');
+  const italicBtn   = document.getElementById('italicBtn');
+  const rotInput    = document.getElementById('rotInput');
+  const addTextBtn  = document.getElementById('addTextBtn');
+  const deleteTextBtn = document.getElementById('deleteTextBtn');
+  const selectedControls = document.getElementById('selectedControls');
+  const noSelectionNote  = document.getElementById('noSelectionNote');
+  const stageEmpty  = document.getElementById('stageEmpty');
+  const canvasWrap  = document.getElementById('canvasWrap');
+  const cv          = document.getElementById('cv');
+  const ctx         = cv.getContext('2d');
+
+  let boldOn = false;
+  let italicOn = false;
+  let aspectRatio = 1;
+
+  // ---------- Helpers ----------
+  function fontString(sizePx, bold, italic, family){
+    const parts = [];
+    if (italic) parts.push('italic');
+    if (bold) parts.push('bold');
+    parts.push(sizePx + 'px');
+    parts.push(family || "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif");
+    return parts.join(' ');
+  }
+
+  function getSelected(){
+    return state.texts.find(t => t.id === state.selectedId) || null;
+  }
+
+  function pxSize(t){ return t.sizeFrac * state.canvasH; }
+  function px(t){ return t.xFrac * state.canvasW; }
+  function py(t){ return t.yFrac * state.canvasH; }
+
+  // Convert a mouse/touch event to canvas pixel coordinates,
+  // accounting for the CSS-scaled display size of the canvas.
+  function getCanvasPoint(evt){
+    const rect = cv.getBoundingClientRect();
+    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+    const scaleX = cv.width / rect.width;
+    const scaleY = cv.height / rect.height;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  }
+
+  // Bounding box (unrotated, local space) for a text object, centered at 0,0
+  function localBox(t){
+    ctx.font = fontString(pxSize(t), t.bold, t.italic, t.fontFamily);
+    const lines = t.text.split('\n');
+    let maxW = 0;
+    lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
+    const lineH = pxSize(t) * 1.25;
+    const h = lineH * lines.length;
+    return { w: maxW, h: h, lineH: lineH, lines: lines };
+  }
+
+  // Test whether canvas point (x,y) hits text object t
+  function hitTest(t, x, y){
+    const box = localBox(t);
+    const cx = px(t), cy = py(t);
+    const rad = -t.rotation * Math.PI / 180;
+    const dx = x - cx, dy = y - cy;
+    const lx = dx * Math.cos(rad) - dy * Math.sin(rad);
+    const ly = dx * Math.sin(rad) + dy * Math.cos(rad);
+    return Math.abs(lx) <= box.w/2 + 6 && Math.abs(ly) <= box.h/2 + 6;
+  }
+
+  // Rotation handle position in world space (above the box, rotated)
+  function rotateHandleWorld(t){
+    const box = localBox(t);
+    const handleDist = box.h/2 + 34;
+    const rad = t.rotation * Math.PI / 180;
+    const lx = 0, ly = -handleDist;
+    const wx = lx * Math.cos(rad) - ly * Math.sin(rad);
+    const wy = lx * Math.sin(rad) + ly * Math.cos(rad);
+    return { x: px(t) + wx, y: py(t) + wy };
+  }
+
+  // ---------- Drawing ----------
+  function draw(){
+    if (!state.img) return;
+    cv.width = state.canvasW;
+    cv.height = state.canvasH;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.drawImage(state.img, 0, 0, cv.width, cv.height);
+
+    state.texts.forEach(t => {
+      ctx.save();
+      ctx.translate(px(t), py(t));
+      ctx.rotate(t.rotation * Math.PI / 180);
+      ctx.font = fontString(pxSize(t), t.bold, t.italic, t.fontFamily);
+      ctx.fillStyle = t.color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const box = localBox(t);
+      const startY = -((box.lines.length - 1) * box.lineH) / 2;
+      box.lines.forEach((line, i) => {
+        ctx.fillText(line, 0, startY + i * box.lineH);
+      });
+      ctx.restore();
+
+      if (t.id === state.selectedId) {
+        ctx.save();
+        ctx.translate(px(t), py(t));
+        ctx.rotate(t.rotation * Math.PI / 180);
+        ctx.strokeStyle = '#E8A33D';
+        ctx.lineWidth = Math.max(1.5, state.canvasW * 0.0018);
+        ctx.setLineDash([6,5]);
+        ctx.strokeRect(-box.w/2 - 8, -box.h/2 - 6, box.w + 16, box.h + 12);
+        ctx.restore();
+
+        // rotation handle
+        const h = rotateHandleWorld(t);
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(px(t), py(t) - box.h/2 - 6);
+        ctx.lineTo(h.x, h.y);
+        ctx.strokeStyle = '#E8A33D';
+        ctx.lineWidth = Math.max(1.5, state.canvasW * 0.0018);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, Math.max(6, state.canvasW*0.008), 0, Math.PI*2);
+        ctx.fillStyle = '#E8A33D';
+        ctx.fill();
+        ctx.restore();
+      }
+    });
+  }
+
+  // ---------- UI sync ----------
+  function refreshSelectionPanel(){
+    const t = getSelected();
+    if (t) {
+      selectedControls.style.display = 'block';
+      noSelectionNote.style.display = 'none';
+      textContent.value = t.text;
+      fontFamily.value = t.fontFamily;
+      fontSize.value = Math.round(pxSize(t));
+      fontColor.value = t.color;
+      boldOn = t.bold; italicOn = t.italic;
+      boldBtn.classList.toggle('active', boldOn);
+      italicBtn.classList.toggle('active', italicOn);
+      rotInput.value = Math.round(t.rotation);
+      addTextBtn.textContent = 'Update text box';
+    } else {
+      selectedControls.style.display = 'none';
+      noSelectionNote.style.display = 'block';
+      addTextBtn.textContent = '+ Add text box';
+    }
+  }
+
+  function applyPanelToSelected(){
+    const t = getSelected();
+    if (!t) return;
+    t.text = textContent.value || ' ';
+    t.fontFamily = fontFamily.value;
+    t.sizeFrac = (parseFloat(fontSize.value) || 10) / state.canvasH;
+    t.color = fontColor.value;
+    t.bold = boldOn;
+    t.italic = italicOn;
+    t.rotation = parseFloat(rotInput.value) || 0;
+    draw();
+  }
+
+  // ---------- Image loading ----------
+  function loadImageFile(file){
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        state.img = img;
+        state.canvasW = img.naturalWidth;
+        state.canvasH = img.naturalHeight;
+        aspectRatio = img.naturalWidth / img.naturalHeight;
+        widthInput.value = state.canvasW;
+        heightInput.value = state.canvasH;
+        state.texts = [];
+        state.selectedId = null;
+        stageEmpty.style.display = 'none';
+        canvasWrap.style.display = 'block';
+        refreshSelectionPanel();
+        draw();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  loadBtn.addEventListener('click', () => fileInput.click());
+  loadBtn2.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => loadImageFile(e.target.files[0]));
+
+  // ---------- Resize ----------
+  const MAX_DIM = 8000; // safety ceiling so we don't hand the browser a canvas it can't allocate
+
+  function resizeCanvas(newW, newH){
+    if (!state.img) return;
+    state.canvasW = Math.max(1, Math.round(newW));
+    state.canvasH = Math.max(1, Math.round(newH));
+    draw();
+  }
+
+  // Commits a validated width/height pair: clamps to MAX_DIM, writes the
+  // (possibly clamped) numbers back into the fields, then resizes.
+  function commitSize(w, h){
+    if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) return;
+    w = Math.min(Math.round(w), MAX_DIM);
+    h = Math.min(Math.round(h), MAX_DIM);
+    widthInput.value = w;
+    heightInput.value = h;
+    resizeCanvas(w, h);
+  }
+
+  widthInput.addEventListener('input', () => {
+    if (!state.img) return;
+    const raw = widthInput.value;
+    if (raw === '') return; // field mid-edit (cleared) - wait for a real number, don't snap to 1
+    const w = parseFloat(raw);
+    if (!isFinite(w) || w <= 0) return;
+    let h;
+    if (lockAspect.checked) {
+      h = w / aspectRatio;
+    } else {
+      h = parseFloat(heightInput.value);
+      if (!isFinite(h) || h <= 0) h = state.canvasH || 1;
+    }
+    commitSize(w, h);
+  });
+
+  heightInput.addEventListener('input', () => {
+    if (!state.img) return;
+    const raw = heightInput.value;
+    if (raw === '') return;
+    const h = parseFloat(raw);
+    if (!isFinite(h) || h <= 0) return;
+    let w;
+    if (lockAspect.checked) {
+      w = h * aspectRatio;
+    } else {
+      w = parseFloat(widthInput.value);
+      if (!isFinite(w) || w <= 0) w = state.canvasW || 1;
+    }
+    commitSize(w, h);
+  });
+
+  // Ticking the box back on should visibly snap the canvas back to true
+  // proportions right away, so the effect of the toggle is obvious.
+  lockAspect.addEventListener('change', () => {
+    if (!state.img || !lockAspect.checked) return;
+    const w = parseFloat(widthInput.value) || state.canvasW;
+    commitSize(w, w / aspectRatio);
+  });
+
+  // ---------- Text style controls ----------
+  boldBtn.addEventListener('click', () => {
+    boldOn = !boldOn;
+    boldBtn.classList.toggle('active', boldOn);
+    applyPanelToSelected();
+  });
+  italicBtn.addEventListener('click', () => {
+    italicOn = !italicOn;
+    italicBtn.classList.toggle('active', italicOn);
+    applyPanelToSelected();
+  });
+  [fontFamily, fontSize, fontColor, rotInput].forEach(el => {
+    el.addEventListener('input', applyPanelToSelected);
+  });
+  textContent.addEventListener('input', applyPanelToSelected);
+
+  // ---------- Add / delete text ----------
+  addTextBtn.addEventListener('click', () => {
+    if (!state.img) { alert('Load an image first.'); return; }
+    if (state.selectedId) {
+      // there IS a selection -> button acts as "update", already live-applied.
+      // Deselect so next click adds a fresh box.
+      applyPanelToSelected();
+      return;
+    }
+    const size = parseFloat(fontSize.value) || 48;
+    const t = {
+      id: state.nextId++,
+      text: textContent.value || 'Your text here',
+      fontFamily: fontFamily.value,
+      sizeFrac: size / state.canvasH,
+      color: fontColor.value,
+      bold: boldOn,
+      italic: italicOn,
+      rotation: parseFloat(rotInput.value) || 0,
+      xFrac: 0.5,
+      yFrac: 0.5
+    };
+    state.texts.push(t);
+    state.selectedId = t.id;
+    refreshSelectionPanel();
+    draw();
+  });
+
+  deleteTextBtn.addEventListener('click', () => {
+    if (!state.selectedId) return;
+    state.texts = state.texts.filter(t => t.id !== state.selectedId);
+    state.selectedId = null;
+    refreshSelectionPanel();
+    draw();
+  });
+
+  // ---------- Canvas interaction: select / move / rotate ----------
+  cv.addEventListener('mousedown', onPointerDown);
+  cv.addEventListener('touchstart', onPointerDown, {passive:false});
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('touchmove', onPointerMove, {passive:false});
+  window.addEventListener('mouseup', onPointerUp);
+  window.addEventListener('touchend', onPointerUp);
+
+  function onPointerDown(evt){
+    if (!state.img) return;
+    evt.preventDefault();
+    const pt = getCanvasPoint(evt);
+
+    const sel = getSelected();
+    if (sel) {
+      const h = rotateHandleWorld(sel);
+      const dist = Math.hypot(pt.x - h.x, pt.y - h.y);
+      if (dist <= Math.max(10, state.canvasW*0.012)) {
+        state.drag = { type: 'rotate', id: sel.id };
+        return;
+      }
+    }
+
+    // hit test topmost-first
+    for (let i = state.texts.length - 1; i >= 0; i--) {
+      const t = state.texts[i];
+      if (hitTest(t, pt.x, pt.y)) {
+        state.selectedId = t.id;
+        refreshSelectionPanel();
+        draw();
+        state.drag = { type: 'move', id: t.id, offX: pt.x - px(t), offY: pt.y - py(t) };
+        return;
+      }
+    }
+
+    // clicked empty space -> deselect
+    if (state.selectedId !== null) {
+      state.selectedId = null;
+      refreshSelectionPanel();
+      draw();
+    }
+  }
+
+  function onPointerMove(evt){
+    if (!state.drag || !state.img) return;
+    evt.preventDefault();
+    const pt = getCanvasPoint(evt);
+    const t = state.texts.find(x => x.id === state.drag.id);
+    if (!t) return;
+
+    if (state.drag.type === 'move') {
+      let nx = pt.x - state.drag.offX;
+      let ny = pt.y - state.drag.offY;
+      nx = Math.min(Math.max(nx, 0), state.canvasW);
+      ny = Math.min(Math.max(ny, 0), state.canvasH);
+      t.xFrac = nx / state.canvasW;
+      t.yFrac = ny / state.canvasH;
+      draw();
+    } else if (state.drag.type === 'rotate') {
+      const cx = px(t), cy = py(t);
+      const angle = Math.atan2(pt.y - cy, pt.x - cx) * 180 / Math.PI;
+      // handle sits "above" (angle -90 at rotation 0), so offset by +90
+      t.rotation = angle + 90;
+      if (t.id === state.selectedId) rotInput.value = Math.round(t.rotation);
+      draw();
+    }
+  }
+
+  function onPointerUp(){
+    state.drag = null;
+  }
+
+  // ---------- Save ----------
+  saveBtn.addEventListener('click', () => {
+    if (!state.img) { alert('Load an image first.'); return; }
+    const wasSelected = state.selectedId;
+    state.selectedId = null; // hide selection outline/handle for the export
+    draw();
+    const link = document.createElement('a');
+    link.download = 'text-on-image.png';
+    link.href = cv.toDataURL('image/png');
+    link.click();
+    state.selectedId = wasSelected;
+    draw();
+  });
+
+  refreshSelectionPanel();
+})();
+</script>
+</body>
+</html>
