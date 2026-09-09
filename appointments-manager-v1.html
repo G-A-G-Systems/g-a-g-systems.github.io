@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Daybook — Calendar &amp; Appointments</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14203A;
+    --paper:#EEF1F3;
+    --panel:#FFFFFF;
+    --accent:#C98A3B;
+    --sage:#5B7A6B;
+    --line:#D5DAE0;
+    --muted:#6B7684;
+    --danger:#B5544A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    background:var(--ink);
+    color:var(--paper);
+    padding:22px 28px 18px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:14px;
+  }
+  header h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:28px;
+    margin:0;
+    letter-spacing:0.3px;
+  }
+  header .sub{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:#AFC0D6;
+    margin-top:4px;
+  }
+  .file-actions{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  button{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    font-weight:500;
+    border:1px solid transparent;
+    border-radius:5px;
+    padding:9px 14px;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease, transform .05s ease;
+  }
+  button:active{transform:translateY(1px);}
+  .btn-ghost{
+    background:transparent;
+    color:var(--paper);
+    border-color:#3C4A67;
+  }
+  .btn-ghost:hover{background:#1E2C4C;}
+  .btn-accent{
+    background:var(--accent);
+    color:#1C1204;
+  }
+  .btn-accent:hover{background:#D89A4F;}
+  #file-status{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:#8FA0BB;
+    align-self:center;
+    margin-right:6px;
+    max-width:220px;
+  }
+
+  .toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 28px 6px;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .month-nav{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .month-nav button{
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--ink);
+    width:34px;height:34px;
+    padding:0;
+    font-size:16px;
+    border-radius:50%;
+    line-height:1;
+  }
+  .month-nav button:hover{border-color:var(--accent);color:var(--accent);}
+  .month-label{
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-size:26px;
+    min-width:230px;
+    text-align:center;
+  }
+  .year-jump{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .year-jump input{
+    width:64px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    padding:6px 8px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:var(--panel);
+    color:var(--ink);
+  }
+  .year-jump button{
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--ink);
+    padding:6px 10px;
+  }
+
+  .calendar-wrap{
+    padding:10px 28px 40px;
+  }
+  .weekday-row{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .weekday-row div{
+    text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:1px;
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:8px;
+  }
+  .day-cell{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    min-height:92px;
+    padding:8px;
+    cursor:pointer;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .day-cell:hover{border-color:var(--accent); box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+  .day-cell.empty{
+    background:transparent;
+    border-color:transparent;
+    cursor:default;
+  }
+  .day-cell.empty:hover{box-shadow:none;}
+  .day-num{
+    font-family:'Fraunces',serif;
+    font-size:18px;
+  }
+  .day-cell.today .day-num{
+    color:var(--accent);
+    font-weight:600;
+  }
+  .day-cell.today::before{
+    content:"";
+    position:absolute;
+    top:6px; right:8px;
+    width:6px;height:6px;
+    border-radius:50%;
+    background:var(--accent);
+  }
+  .appt-chip{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    background:#EEF3F0;
+    color:var(--sage);
+    border-left:2px solid var(--sage);
+    padding:2px 5px;
+    border-radius:2px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .appt-count{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    color:var(--muted);
+  }
+
+  /* Day panel (modal) */
+  .overlay{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(20,32,58,0.45);
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:50;
+  }
+  .overlay.open{display:flex;}
+  .panel{
+    background:var(--panel);
+    width:100%;
+    max-width:480px;
+    max-height:82vh;
+    border-radius:10px;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    box-shadow:0 20px 50px rgba(0,0,0,0.25);
+  }
+  .panel-head{
+    background:var(--ink);
+    color:var(--paper);
+    padding:16px 20px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  .panel-head h2{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:20px;
+    margin:0;
+  }
+  .panel-head button{
+    background:transparent;
+    border:none;
+    color:#AFC0D6;
+    font-size:18px;
+    cursor:pointer;
+    padding:2px 6px;
+  }
+  .panel-body{
+    overflow-y:auto;
+    padding:10px 0 16px;
+  }
+  .slot-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:6px 20px;
+    border-bottom:1px solid #F0F1F3;
+  }
+  .slot-row.has-appt{background:#FBF6EE;}
+  .slot-time{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--muted);
+    width:56px;
+    flex-shrink:0;
+  }
+  .slot-row.has-appt .slot-time{color:var(--accent); font-weight:600;}
+  .slot-text{
+    flex:1;
+    font-size:13.5px;
+  }
+  .slot-input{
+    flex:1;
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    padding:6px 8px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:var(--paper);
+  }
+  .slot-add-btn{
+    background:var(--sage);
+    color:#fff;
+    border:none;
+    padding:6px 10px;
+    font-size:12px;
+    border-radius:4px;
+    flex-shrink:0;
+  }
+  .slot-add-btn:hover{background:#4a6559;}
+  .slot-del-btn{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--danger);
+    padding:5px 9px;
+    font-size:12px;
+    border-radius:4px;
+    flex-shrink:0;
+  }
+  .slot-del-btn:hover{background:#FBEDEC;border-color:var(--danger);}
+
+  footer{
+    padding:20px 28px 40px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted);
+    text-align:center;
+  }
+
+  @media (max-width:640px){
+    .day-cell{min-height:64px;}
+    .appt-chip{display:none;}
+    .appt-count{display:block;}
+    .month-label{font-size:20px; min-width:0;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Daybook</h1>
+    <div class="sub" id="entry-count">0 appointments on record</div>
+  </div>
+  <div class="file-actions">
+    <span id="file-status">not connected to a file</span>
+    <button class="btn-ghost" id="btn-load">Load file…</button>
+    <button class="btn-accent" id="btn-save">Save to file</button>
+    <input type="file" id="file-input" accept="application/json" style="display:none">
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="month-nav">
+    <button id="prev-month" aria-label="Previous month">&#8592;</button>
+    <div class="month-label" id="month-label">Month Year</div>
+    <button id="next-month" aria-label="Next month">&#8594;</button>
+  </div>
+  <div class="year-jump">
+    <span>jump to year</span>
+    <input type="number" id="year-input" step="1">
+    <button id="year-go">Go</button>
+    <button id="btn-today">Today</button>
+  </div>
+</div>
+
+<div class="calendar-wrap">
+  <div class="weekday-row">
+    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<footer>Appointments live only in memory and in the file you save — nothing is stored on a server.</footer>
+
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <div class="panel-head">
+      <h2 id="panel-date">Date</h2>
+      <button id="panel-close" aria-label="Close">✕</button>
+    </div>
+    <div class="panel-body" id="panel-body"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- State ----------
+  var today = new Date();
+  var viewYear = today.getFullYear();
+  var viewMonth = today.getMonth(); // 0-11
+  var appointments = {};   // { "YYYY-MM-DD": { "HH:MM": "title", ... } }
+  var fileHandle = null;   // File System Access API handle, when available
+  var activeDateKey = null;
+
+  var monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  function pad(n){ return n < 10 ? "0"+n : ""+n; }
+  function dateKey(y,m,d){ return y+"-"+pad(m+1)+"-"+pad(d); }
+  function isToday(y,m,d){
+    return y===today.getFullYear() && m===today.getMonth() && d===today.getDate();
+  }
+
+  // ---------- Time slots: every half hour, 00:00 to 23:30 ----------
+  var slots = [];
+  for (var h=0; h<24; h++){
+    slots.push(pad(h)+":00");
+    slots.push(pad(h)+":30");
+  }
+  function formatSlotLabel(t){
+    var parts = t.split(":");
+    var hh = parseInt(parts[0],10);
+    var suffix = hh >= 12 ? "PM" : "AM";
+    var hh12 = hh % 12; if (hh12===0) hh12 = 12;
+    return hh12+":"+parts[1]+" "+suffix;
+  }
+
+  // ---------- Rendering: calendar grid ----------
+  function renderCalendar(){
+    document.getElementById("month-label").textContent = monthNames[viewMonth] + " " + viewYear;
+    document.getElementById("year-input").value = viewYear;
+
+    var grid = document.getElementById("grid");
+    grid.innerHTML = "";
+
+    var firstDow = new Date(viewYear, viewMonth, 1).getDay();
+    var daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+
+    for (var i=0; i<firstDow; i++){
+      var blank = document.createElement("div");
+      blank.className = "day-cell empty";
+      grid.appendChild(blank);
+    }
+
+    var totalCount = 0;
+
+    for (var d=1; d<=daysInMonth; d++){
+      var key = dateKey(viewYear, viewMonth, d);
+      var dayAppts = appointments[key] || {};
+      var times = Object.keys(dayAppts).sort();
+      totalCount += times.length;
+
+      var cell = document.createElement("div");
+      cell.className = "day-cell" + (isToday(viewYear,viewMonth,d) ? " today" : "");
+      cell.setAttribute("data-key", key);
+
+      var num = document.createElement("div");
+      num.className = "day-num";
+      num.textContent = d;
+      cell.appendChild(num);
+
+      var listWrap = document.createElement("div");
+      if (times.length){
+        var shown = times.slice(0,2);
+        shown.forEach(function(t){
+          var chip = document.createElement("div");
+          chip.className = "appt-chip";
+          chip.textContent = formatSlotLabel(t) + " " + dayAppts[t];
+          listWrap.appendChild(chip);
+        });
+        var count = document.createElement("div");
+        count.className = "appt-count";
+        count.textContent = times.length + (times.length===1 ? " appointment" : " appointments");
+        listWrap.appendChild(count);
+      }
+      cell.appendChild(listWrap);
+
+      cell.addEventListener("click", function(){
+        openDayPanel(this.getAttribute("data-key"));
+      });
+
+      grid.appendChild(cell);
+    }
+
+    updateEntryCount();
+  }
+
+  function updateEntryCount(){
+    var total = 0;
+    Object.keys(appointments).forEach(function(k){
+      total += Object.keys(appointments[k]).length;
+    });
+    document.getElementById("entry-count").textContent =
+      total + (total===1 ? " appointment on record" : " appointments on record");
+  }
+
+  // ---------- Day panel ----------
+  function openDayPanel(key){
+    activeDateKey = key;
+    var parts = key.split("-").map(Number);
+    var d = new Date(parts[0], parts[1]-1, parts[2]);
+    document.getElementById("panel-date").textContent =
+      d.toLocaleDateString(undefined, { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+    renderPanelBody();
+    document.getElementById("overlay").classList.add("open");
+  }
+
+  function renderPanelBody(){
+    var body = document.getElementById("panel-body");
+    body.innerHTML = "";
+    var dayAppts = appointments[activeDateKey] || {};
+
+    slots.forEach(function(t){
+      var row = document.createElement("div");
+      row.className = "slot-row" + (dayAppts[t] ? " has-appt" : "");
+
+      var timeEl = document.createElement("div");
+      timeEl.className = "slot-time";
+      timeEl.textContent = formatSlotLabel(t);
+      row.appendChild(timeEl);
+
+      if (dayAppts[t]){
+        var textEl = document.createElement("div");
+        textEl.className = "slot-text";
+        textEl.textContent = dayAppts[t];
+        row.appendChild(textEl);
+
+        var delBtn = document.createElement("button");
+        delBtn.className = "slot-del-btn";
+        delBtn.textContent = "Remove";
+        delBtn.addEventListener("click", function(){
+          delete appointments[activeDateKey][t];
+          if (Object.keys(appointments[activeDateKey]).length === 0){
+            delete appointments[activeDateKey];
+          }
+          renderPanelBody();
+          renderCalendar();
+        });
+        row.appendChild(delBtn);
+      } else {
+        var input = document.createElement("input");
+        input.className = "slot-input";
+        input.type = "text";
+        input.placeholder = "Add appointment…";
+
+        var addBtn = document.createElement("button");
+        addBtn.className = "slot-add-btn";
+        addBtn.textContent = "Add";
+
+        function commit(){
+          var val = input.value.trim();
+          if (!val) return;
+          if (!appointments[activeDateKey]) appointments[activeDateKey] = {};
+          appointments[activeDateKey][t] = val;
+          renderPanelBody();
+          renderCalendar();
+        }
+        addBtn.addEventListener("click", commit);
+        input.addEventListener("keydown", function(e){
+          if (e.key === "Enter") commit();
+        });
+
+        row.appendChild(input);
+        row.appendChild(addBtn);
+      }
+
+      body.appendChild(row);
+    });
+  }
+
+  document.getElementById("panel-close").addEventListener("click", function(){
+    document.getElementById("overlay").classList.remove("open");
+  });
+  document.getElementById("overlay").addEventListener("click", function(e){
+    if (e.target === this) this.classList.remove("open");
+  });
+
+  // ---------- Navigation ----------
+  document.getElementById("prev-month").addEventListener("click", function(){
+    viewMonth--; if (viewMonth < 0){ viewMonth = 11; viewYear--; }
+    renderCalendar();
+  });
+  document.getElementById("next-month").addEventListener("click", function(){
+    viewMonth++; if (viewMonth > 11){ viewMonth = 0; viewYear++; }
+    renderCalendar();
+  });
+  document.getElementById("year-go").addEventListener("click", function(){
+    var y = parseInt(document.getElementById("year-input").value, 10);
+    if (!isNaN(y)) { viewYear = y; renderCalendar(); }
+  });
+  document.getElementById("btn-today").addEventListener("click", function(){
+    viewYear = today.getFullYear();
+    viewMonth = today.getMonth();
+    renderCalendar();
+  });
+
+  // ---------- File save / load ----------
+  var supportsFSAccess = ('showSaveFilePicker' in window) && ('showOpenFilePicker' in window);
+
+  function currentDataString(){
+    return JSON.stringify({ savedAt: new Date().toISOString(), appointments: appointments }, null, 2);
+  }
+
+  function setStatus(msg){
+    document.getElementById("file-status").textContent = msg;
+  }
+
+  async function saveToFile(){
+    var text = currentDataString();
+
+    if (supportsFSAccess){
+      try {
+        if (!fileHandle){
+          fileHandle = await window.showSaveFilePicker({
+            suggestedName: "daybook-appointments.json",
+            types: [{ description: "JSON file", accept: { "application/json": [".json"] } }]
+          });
+        }
+        var writable = await fileHandle.createWritable();
+        await writable.write(text);
+        await writable.close();
+        setStatus("saved to " + fileHandle.name);
+        return;
+      } catch (err){
+        if (err && err.name === "AbortError") return;
+        console.error(err);
+        // fall through to download method
+      }
+    }
+
+    // Fallback: trigger a normal browser download (lands in Downloads folder)
+    var blob = new Blob([text], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "daybook-appointments.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus("downloaded daybook-appointments.json");
+  }
+
+  async function loadFromFile(){
+    if (supportsFSAccess){
+      try {
+        var handles = await window.showOpenFilePicker({
+          types: [{ description: "JSON file", accept: { "application/json": [".json"] } }]
+        });
+        fileHandle = handles[0];
+        var file = await fileHandle.getFile();
+        var text = await file.text();
+        applyLoadedText(text, fileHandle.name);
+        return;
+      } catch (err){
+        if (err && err.name === "AbortError") return;
+        console.error(err);
+        // fall through to plain file input
+      }
+    }
+    document.getElementById("file-input").click();
+  }
+
+  document.getElementById("file-input").addEventListener("change", function(e){
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      applyLoadedText(reader.result, file.name);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+
+  function applyLoadedText(text, name){
+    try {
+      var data = JSON.parse(text);
+      appointments = (data && data.appointments) ? data.appointments : {};
+      setStatus("loaded " + name);
+      renderCalendar();
+    } catch (err){
+      alert("That file doesn't look like a valid Daybook JSON file.");
+      console.error(err);
+    }
+  }
+
+  document.getElementById("btn-save").addEventListener("click", saveToFile);
+  document.getElementById("btn-load").addEventListener("click", loadFromFile);
+
+  // ---------- Init ----------
+  renderCalendar();
+})();
+</script>
+
+</body>
+</html>
