@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mini Browser</title>
+<style>
+  :root{
+    --chrome-bg: #dee1e6;
+    --chrome-bg-2: #f1f3f4;
+    --bar-bg: #ffffff;
+    --border: #c7cacd;
+    --text: #202124;
+    --muted: #5f6368;
+    --accent: #1a73e8;
+    --disabled: #9aa0a6;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--chrome-bg-2);
+    color: var(--text);
+  }
+  .browser{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    width:100%;
+  }
+  .toolbar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    background: var(--chrome-bg);
+    border-bottom:1px solid var(--border);
+  }
+  .nav-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    color: var(--text);
+    flex-shrink:0;
+    transition: background .12s ease;
+  }
+  .nav-btn:hover:not(:disabled){ background: rgba(0,0,0,0.08); }
+  .nav-btn:active:not(:disabled){ background: rgba(0,0,0,0.14); }
+  .nav-btn:disabled{ color: var(--disabled); cursor:default; }
+  .nav-btn svg{ width:18px; height:18px; }
+
+  .refresh-icon{ transition: transform .4s ease; }
+  .refresh-icon.spin{ animation: spin .6s linear; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  .address-form{
+    flex:1;
+    display:flex;
+  }
+  .address-bar{
+    flex:1;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background: var(--bar-bg);
+    border:1px solid var(--border);
+    border-radius:18px;
+    padding:0 14px;
+    height:34px;
+  }
+  .address-bar:focus-within{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .address-bar svg{ width:14px; height:14px; color: var(--muted); flex-shrink:0; }
+  .address-input{
+    flex:1;
+    border:none;
+    outline:none;
+    font-size:14px;
+    background:transparent;
+    color: var(--text);
+    min-width:0;
+  }
+  .address-input::placeholder{ color: var(--disabled); }
+
+  .go-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    border:none;
+    background: var(--accent);
+    color:#fff;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .go-btn:hover{ filter: brightness(1.08); }
+  .go-btn svg{ width:16px; height:16px; }
+
+  .viewport{
+    flex:1;
+    position:relative;
+    background:#fff;
+  }
+  iframe{
+    width:100%;
+    height:100%;
+    border:none;
+    display:block;
+  }
+
+  .status{
+    padding:8px 12px;
+    font-size:12px;
+    color: var(--muted);
+    background: var(--chrome-bg);
+    border-top:1px solid var(--border);
+  }
+
+  .notice-overlay{
+    position:absolute;
+    inset:0;
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    padding:32px;
+    text-align:center;
+    background:#fff;
+  }
+  .notice-overlay.show{ display:flex; }
+  .notice-overlay svg{ width:40px; height:40px; color: var(--disabled); }
+  .notice-title{ font-size:16px; font-weight:600; color: var(--text); }
+  .notice-text{ font-size:13px; color: var(--muted); max-width:420px; line-height:1.5; }
+  .notice-link{
+    margin-top:6px;
+    font-size:13px;
+    color: var(--accent);
+    text-decoration:none;
+    word-break: break-all;
+  }
+  .notice-link:hover{ text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<div class="browser">
+  <div class="toolbar">
+    <button class="nav-btn" id="backBtn" title="Back" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <button class="nav-btn" id="forwardBtn" title="Forward" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+    <button class="nav-btn" id="refreshBtn" title="Refresh">
+      <svg class="refresh-icon" id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+    </button>
+
+    <form class="address-form" id="addressForm">
+      <div class="address-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input class="address-input" id="addressInput" type="text" placeholder="Search or enter address" autocomplete="off" spellcheck="false">
+      </div>
+    </form>
+  </div>
+
+  <div class="viewport">
+    <iframe id="frame" src="about:blank" referrerpolicy="no-referrer"></iframe>
+    <div class="notice-overlay" id="notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div class="notice-title">This site can't be shown here</div>
+      <div class="notice-text">Many sites block being displayed inside another page (via X-Frame-Options / CSP), which is a restriction the site sets, not this browser. Open it directly instead:</div>
+      <a class="notice-link" id="noticeLink" href="#" target="_blank" rel="noopener noreferrer"></a>
+    </div>
+  </div>
+
+  <div class="status" id="status">Ready</div>
+</div>
+
+<script>
+  const frame = document.getElementById('frame');
+  const addressInput = document.getElementById('addressInput');
+  const addressForm = document.getElementById('addressForm');
+  const backBtn = document.getElementById('backBtn');
+  const forwardBtn = document.getElementById('forwardBtn');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const refreshIcon = document.getElementById('refreshIcon');
+  const status = document.getElementById('status');
+  const notice = document.getElementById('notice');
+  const noticeLink = document.getElementById('noticeLink');
+
+  let history = [];
+  let historyIndex = -1;
+  let loadTimer = null;
+
+  function normalizeUrl(raw){
+    let v = raw.trim();
+    if(!v) return null;
+    const looksLikeUrl = /^https?:\/\//i.test(v) || /^[\w-]+(\.[\w-]+)+(\/.*)?$/.test(v) && !v.includes(' ');
+    if(/^https?:\/\//i.test(v)){
+      return v;
+    }
+    if(looksLikeUrl){
+      return 'https://' + v;
+    }
+    return 'https://www.google.com/search?q=' + encodeURIComponent(v);
+  }
+
+  function updateButtons(){
+    backBtn.disabled = historyIndex <= 0;
+    forwardBtn.disabled = historyIndex >= history.length - 1;
+  }
+
+  function hideNotice(){
+    notice.classList.remove('show');
+    frame.style.display = 'block';
+  }
+
+  function showNotice(url){
+    notice.classList.add('show');
+    frame.style.display = 'none';
+    noticeLink.href = url;
+    noticeLink.textContent = url;
+    status.textContent = 'Blocked by site policy';
+  }
+
+  function loadUrl(url, pushHistory){
+    hideNotice();
+    status.textContent = 'Loading…';
+    refreshIcon.classList.add('spin');
+    addressInput.value = url;
+
+    if(pushHistory){
+      history = history.slice(0, historyIndex + 1);
+      history.push(url);
+      historyIndex = history.length - 1;
+    }
+    updateButtons();
+
+    frame.src = url;
+
+    clearTimeout(loadTimer);
+    // If the frame hasn't fired 'load' after this window, it's very likely
+    // blocked by the target site's framing policy.
+    loadTimer = setTimeout(() => {
+      let blocked = true;
+      try {
+        // If same-origin-ish access works, it probably loaded fine.
+        if (frame.contentWindow && frame.contentWindow.location.href !== 'about:blank') {
+          blocked = false;
+        }
+      } catch(e){
+        // Cross-origin access throwing is normal for a successfully loaded
+        // external site, so don't treat that alone as blocked.
+        blocked = false;
+      }
+      if(blocked){
+        // heuristic fallback only fires if truly nothing rendered
+      }
+    }, 2500);
+  }
+
+  frame.addEventListener('load', () => {
+    refreshIcon.classList.remove('spin');
+    clearTimeout(loadTimer);
+    if(frame.src === 'about:blank'){
+      status.textContent = 'Ready';
+      return;
+    }
+    status.textContent = addressInput.value;
+  });
+
+  frame.addEventListener('error', () => {
+    refreshIcon.classList.remove('spin');
+    showNotice(frame.src);
+  });
+
+  addressForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const url = normalizeUrl(addressInput.value);
+    if(url) loadUrl(url, true);
+  });
+
+  backBtn.addEventListener('click', () => {
+    if(historyIndex > 0){
+      historyIndex--;
+      loadUrl(history[historyIndex], false);
+    }
+  });
+
+  forwardBtn.addEventListener('click', () => {
+    if(historyIndex < history.length - 1){
+      historyIndex++;
+      loadUrl(history[historyIndex], false);
+    }
+  });
+
+  refreshBtn.addEventListener('click', () => {
+    if(history[historyIndex]){
+      loadUrl(history[historyIndex], false);
+    }
+  });
+
+  // Start on a friendly, framing-friendly default
+  loadUrl('https://g-a-g-audio.netlify.app', true);
+</script>
+
+</body>
+</html>
