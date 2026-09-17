@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MP4 Video Merger</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --text:#e8eaf0;
+    --muted:#9aa1b2; --accent:#4f8cff; --accent2:#3f74dd; --danger:#e5484d;
+    --good:#3ecf8e; --border:#2a2f3a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh; padding:32px 16px;
+  }
+  .wrap{max-width:720px; margin:0 auto;}
+  h1{font-size:22px; margin:0 0 4px;}
+  p.sub{color:var(--muted); margin:0 0 24px; font-size:14px;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:20px; margin-bottom:16px;
+  }
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  button{
+    background:var(--accent); color:#fff; border:none; border-radius:8px;
+    padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer;
+    transition:background .15s ease;
+  }
+  button:hover:not(:disabled){background:var(--accent2);}
+  button:disabled{background:#3a3f4b; color:#7b8191; cursor:not-allowed;}
+  button.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--border);}
+  button.secondary:hover:not(:disabled){background:#252a35;}
+  button.icon{padding:6px 10px; font-size:12px;}
+  input[type=file]{display:none;}
+  ul#fileList{list-style:none; margin:16px 0 0; padding:0;}
+  ul#fileList li{
+    display:flex; align-items:center; gap:10px; background:var(--panel2);
+    border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:8px;
+  }
+  ul#fileList li .idx{
+    width:22px; height:22px; border-radius:50%; background:var(--accent);
+    color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  ul#fileList li .name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px;}
+  ul#fileList li .size{color:var(--muted); font-size:12px; flex-shrink:0;}
+  ul#fileList li .btns{display:flex; gap:4px; flex-shrink:0;}
+  #dropZone{
+    border:2px dashed var(--border); border-radius:10px; padding:28px; text-align:center;
+    color:var(--muted); font-size:14px; cursor:pointer; transition:border-color .15s ease, color .15s ease;
+  }
+  #dropZone:hover, #dropZone.drag{border-color:var(--accent); color:var(--text);}
+  #empty{color:var(--muted); font-size:13px; margin-top:12px; text-align:center;}
+  .progress-outer{
+    background:var(--panel2); border-radius:8px; height:10px; overflow:hidden; margin-top:12px; border:1px solid var(--border);
+  }
+  .progress-inner{
+    background:var(--accent); height:100%; width:0%; transition:width .2s ease;
+  }
+  #status{font-size:13px; color:var(--muted); margin-top:8px; white-space:pre-wrap; word-break:break-word;}
+  #status.error{color:var(--danger);}
+  #status.good{color:var(--good);}
+  .footer-actions{margin-top:16px;}
+  a#downloadLink{
+    display:none; text-align:center; background:var(--good); color:#06231a; font-weight:700;
+    border-radius:8px; padding:12px; text-decoration:none; margin-top:12px;
+  }
+  video#preview{width:100%; border-radius:8px; margin-top:12px; display:none; background:#000;}
+  .hint{font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎬 MP4 Video Merger</h1>
+  <p class="sub">Load multiple .mp4 files, arrange their order, then merge and download a single .mp4.</p>
+
+  <div class="card">
+    <div id="dropZone">
+      Click to add .mp4 files, or drag &amp; drop them here
+    </div>
+    <input type="file" id="fileInput" accept="video/mp4,.mp4" multiple>
+
+    <ul id="fileList"></ul>
+    <div id="empty">No files added yet.</div>
+
+    <div class="footer-actions row">
+      <button id="mergeBtn" disabled>Merge Videos</button>
+      <button id="clearBtn" class="secondary" disabled>Clear All</button>
+    </div>
+
+    <div class="progress-outer" id="progressOuter" style="display:none;">
+      <div class="progress-inner" id="progressInner"></div>
+    </div>
+    <div id="status"></div>
+    <video id="preview" controls></video>
+    <a id="downloadLink" download="merged-video.mp4">⬇ Download merged-video.mp4</a>
+
+    <div class="hint">
+      Note: merging works best when all clips share the same resolution/codec (fast, no quality loss).
+      If clips differ, the tool automatically falls back to re-encoding them to a common format, which
+      takes longer but always produces a single playable .mp4.
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+<script>
+(function(){
+  const { FFmpeg } = FFmpegWASM;
+  const { fetchFile, toBlobURL } = FFmpegUtil;
+  const ffmpeg = new FFmpeg();
+  ffmpeg.on('progress', ({ progress }) => {
+    if (progress >= 0 && progress <= 1) {
+      setProgress(progress * 100);
+    }
+  });
+  let ffmpegLoaded = false;
+
+  const fileInput = document.getElementById('fileInput');
+  const dropZone = document.getElementById('dropZone');
+  const fileListEl = document.getElementById('fileList');
+  const emptyEl = document.getElementById('empty');
+  const mergeBtn = document.getElementById('mergeBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const statusEl = document.getElementById('status');
+  const progressOuter = document.getElementById('progressOuter');
+  const progressInner = document.getElementById('progressInner');
+  const previewEl = document.getElementById('preview');
+  const downloadLink = document.getElementById('downloadLink');
+
+  let files = []; // {file, id}
+  let idCounter = 0;
+
+  function setStatus(msg, kind){
+    statusEl.textContent = msg || '';
+    statusEl.className = kind || '';
+  }
+  function setProgress(pct){
+    progressOuter.style.display = 'block';
+    progressInner.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  }
+  function resetProgress(){
+    progressOuter.style.display = 'none';
+    progressInner.style.width = '0%';
+  }
+  function formatSize(bytes){
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
+    return (bytes/(1024*1024)).toFixed(1) + ' MB';
+  }
+
+  function renderList(){
+    fileListEl.innerHTML = '';
+    if (files.length === 0){
+      emptyEl.style.display = 'block';
+    } else {
+      emptyEl.style.display = 'none';
+    }
+    files.forEach((entry, i) => {
+      const li = document.createElement('li');
+
+      const idx = document.createElement('div');
+      idx.className = 'idx';
+      idx.textContent = i + 1;
+
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = entry.file.name;
+      name.title = entry.file.name;
+
+      const size = document.createElement('div');
+      size.className = 'size';
+      size.textContent = formatSize(entry.file.size);
+
+      const btns = document.createElement('div');
+      btns.className = 'btns';
+
+      const upBtn = document.createElement('button');
+      upBtn.className = 'secondary icon';
+      upBtn.textContent = '↑';
+      upBtn.disabled = i === 0;
+      upBtn.onclick = () => { moveFile(i, i-1); };
+
+      const downBtn = document.createElement('button');
+      downBtn.className = 'secondary icon';
+      downBtn.textContent = '↓';
+      downBtn.disabled = i === files.length - 1;
+      downBtn.onclick = () => { moveFile(i, i+1); };
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'secondary icon';
+      removeBtn.textContent = '✕';
+      removeBtn.onclick = () => { removeFile(i); };
+
+      btns.appendChild(upBtn);
+      btns.appendChild(downBtn);
+      btns.appendChild(removeBtn);
+
+      li.appendChild(idx);
+      li.appendChild(name);
+      li.appendChild(size);
+      li.appendChild(btns);
+      fileListEl.appendChild(li);
+    });
+
+    const hasFiles = files.length > 0;
+    clearBtn.disabled = !hasFiles;
+    mergeBtn.disabled = files.length < 2;
+    if (files.length === 1){
+      setStatus('Add at least one more clip to merge, or you already have a single finished video.', '');
+    } else {
+      setStatus('');
+    }
+  }
+
+  function moveFile(from, to){
+    const [item] = files.splice(from, 1);
+    files.splice(to, 0, item);
+    renderList();
+  }
+  function removeFile(i){
+    files.splice(i, 1);
+    renderList();
+  }
+  function addFiles(fileArr){
+    const mp4s = Array.from(fileArr).filter(f => f.type === 'video/mp4' || f.name.toLowerCase().endsWith('.mp4'));
+    if (mp4s.length === 0){
+      setStatus('Only .mp4 files are supported.', 'error');
+      return;
+    }
+    mp4s.forEach(f => files.push({ file: f, id: idCounter++ }));
+    renderList();
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    addFiles(e.target.files);
+    fileInput.value = '';
+  });
+  ['dragenter','dragover'].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault(); e.stopPropagation();
+      dropZone.classList.add('drag');
+    });
+  });
+  ['dragleave','drop'].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault(); e.stopPropagation();
+      dropZone.classList.remove('drag');
+    });
+  });
+  dropZone.addEventListener('drop', (e) => {
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    files = [];
+    renderList();
+    resetProgress();
+    setStatus('');
+    previewEl.style.display = 'none';
+    downloadLink.style.display = 'none';
+  });
+
+  async function ensureFFmpegLoaded(){
+    if (!ffmpegLoaded){
+      setStatus('Loading video engine (first time only, ~30MB)...', '');
+      const ffmpegBase = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd';
+      const coreBase = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${coreBase}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${coreBase}/ffmpeg-core.wasm`, 'application/wasm'),
+        classWorkerURL: await toBlobURL(`${ffmpegBase}/814.ffmpeg.js`, 'text/javascript'),
+      });
+      ffmpegLoaded = true;
+    }
+  }
+
+  async function tryFastConcat(inputNames){
+    // Write concat list
+    const listContent = inputNames.map(n => `file '${n}'`).join('\n');
+    await ffmpeg.writeFile('concat_list.txt', new TextEncoder().encode(listContent));
+    await ffmpeg.exec([
+      '-f', 'concat', '-safe', '0',
+      '-i', 'concat_list.txt',
+      '-c', 'copy',
+      'output.mp4'
+    ]);
+  }
+
+  async function reencodeConcat(inputNames){
+    const args = [];
+    inputNames.forEach(n => { args.push('-i', n); });
+    let filterInputs = '';
+    inputNames.forEach((_, i) => { filterInputs += `[${i}:v:0][${i}:a:0]`; });
+    const filter = `${filterInputs}concat=n=${inputNames.length}:v=1:a=1[outv][outa]`;
+    args.push(
+      '-filter_complex', filter,
+      '-map', '[outv]', '-map', '[outa]',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
+      '-c:a', 'aac', '-b:a', '128k',
+      'output.mp4'
+    );
+    await ffmpeg.exec(args);
+  }
+
+  async function offerDownload(blob, filename){
+    if (window.claude && typeof window.claude.use === 'function'){
+      try {
+        const downloads = await window.claude.use('downloads');
+        if (downloads){
+          await downloads.save({ filename, data: blob });
+          return;
+        }
+      } catch (e) {
+        // fall through to plain browser download below
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    downloadLink.href = url;
+    downloadLink.download = filename;
+    downloadLink.style.display = 'block';
+  }
+
+  mergeBtn.addEventListener('click', async () => {
+    if (files.length < 2) return;
+    mergeBtn.disabled = true;
+    clearBtn.disabled = true;
+    previewEl.style.display = 'none';
+    downloadLink.style.display = 'none';
+    resetProgress();
+
+    try {
+      await ensureFFmpegLoaded();
+
+      setStatus('Loading clips into memory...', '');
+      const inputNames = [];
+      for (let i = 0; i < files.length; i++){
+        const name = `input${i}.mp4`;
+        const data = await fetchFile(files[i].file);
+        await ffmpeg.writeFile(name, data);
+        inputNames.push(name);
+      }
+
+      let usedReencode = false;
+      setStatus('Merging clips (fast mode)...', '');
+      try {
+        await tryFastConcat(inputNames);
+      } catch (err) {
+        usedReencode = true;
+        setStatus('Clips differ in format — re-encoding to merge (this can take a while)...', '');
+        try { await ffmpeg.deleteFile('output.mp4'); } catch(e){}
+        await reencodeConcat(inputNames);
+      }
+
+      const data = await ffmpeg.readFile('output.mp4');
+      const blob = new Blob([data.buffer], { type: 'video/mp4' });
+
+      previewEl.src = URL.createObjectURL(blob);
+      previewEl.style.display = 'block';
+
+      await offerDownload(blob, 'merged-video.mp4');
+
+      setStatus(
+        usedReencode
+          ? 'Done! Clips were re-encoded to merge successfully.'
+          : 'Done! Clips were merged without re-encoding (fast, lossless).',
+        'good'
+      );
+      resetProgress();
+
+      // cleanup virtual FS
+      for (const n of inputNames) { try { await ffmpeg.deleteFile(n); } catch(e){} }
+      try { await ffmpeg.deleteFile('output.mp4'); } catch(e){}
+      try { await ffmpeg.deleteFile('concat_list.txt'); } catch(e){}
+
+    } catch (err) {
+      console.error(err);
+      setStatus('Something went wrong while merging: ' + (err && err.message ? err.message : err), 'error');
+    } finally {
+      mergeBtn.disabled = files.length < 2;
+      clearBtn.disabled = files.length === 0;
+    }
+  });
+
+  renderList();
+})();
+</script>
+</body>
+</html>
