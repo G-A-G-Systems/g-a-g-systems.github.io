@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Simple MP4 Video Player</title>
+
+<style>
+    body{
+        margin:0;
+        font-family:Arial, sans-serif;
+        background:#1e1e1e;
+        color:white;
+    }
+
+    /* MENU BAR */
+    .menu-bar{
+        background:#333;
+        padding:10px;
+        display:flex;
+        gap:10px;
+        border-bottom:2px solid #555;
+    }
+
+    .menu-button{
+        background:#444;
+        color:white;
+        border:none;
+        padding:8px 16px;
+        cursor:pointer;
+        font-size:14px;
+    }
+
+    .menu-button:hover{
+        background:#666;
+    }
+
+    /* PLAYER AREA */
+    .player-container{
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        margin-top:20px;
+    }
+
+    video{
+        width:80%;
+        max-width:900px;
+        background:black;
+        border:3px solid #555;
+    }
+
+    /* TIME DISPLAY */
+    .time-display{
+        margin-top:12px;
+        font-size:18px;
+        font-family:Consolas, monospace;
+        background:#333;
+        border:1px solid #555;
+        padding:6px 14px;
+    }
+
+    /* CONTROLS */
+    .controls{
+        margin-top:15px;
+        display:flex;
+        gap:10px;
+    }
+
+    .control-button{
+        background:#0078d7;
+        border:none;
+        color:white;
+        padding:10px 20px;
+        font-size:16px;
+        cursor:pointer;
+    }
+
+    .control-button:hover{
+        background:#3399ff;
+    }
+
+    .control-button:disabled{
+        background:#555;
+        cursor:not-allowed;
+    }
+
+    /* EXTRACT SEGMENT */
+    .extract-panel{
+        margin-top:20px;
+        padding:15px 20px;
+        background:#2b2b2b;
+        border:1px solid #555;
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        align-items:center;
+    }
+
+    .extract-panel h3{
+        margin:0;
+        font-size:16px;
+    }
+
+    .extract-row{
+        display:flex;
+        gap:15px;
+        align-items:center;
+        flex-wrap:wrap;
+        justify-content:center;
+    }
+
+    .extract-row label{
+        font-size:14px;
+    }
+
+    .extract-row input[type="number"]{
+        width:90px;
+        padding:6px;
+        font-size:15px;
+        background:#1e1e1e;
+        color:white;
+        border:1px solid #666;
+    }
+
+    #extractStatus{
+        font-size:14px;
+        color:#ccc;
+        min-height:18px;
+    }
+
+    input[type="file"]{
+        display:none;
+    }
+</style>
+</head>
+
+<body>
+
+<!-- MENU -->
+<div class="menu-bar">
+    <button class="menu-button" onclick="openVideo()">File - Open/Load</button>
+    <button class="menu-button" onclick="saveAs()">File - Save As</button>
+</div>
+
+<!-- HIDDEN FILE INPUT -->
+<input type="file" id="fileInput" accept=".mp4,video/mp4">
+
+<!-- VIDEO PLAYER -->
+<div class="player-container">
+
+    <video id="videoPlayer"></video>
+
+    <!-- 1) TIME IN SECONDS -->
+    <div class="time-display">
+        Time: <span id="timeDisplay">0.0</span> sec
+        / <span id="durationDisplay">0.0</span> sec
+    </div>
+
+    <div class="controls">
+        <button class="control-button" onclick="playVideo()">PLAY</button>
+
+        <button class="control-button" onclick="pauseVideo()">PAUSE</button>
+
+        <button class="control-button" onclick="stopVideo()">STOP</button>
+    </div>
+
+    <!-- EXTRACT SEGMENT -->
+    <div class="extract-panel">
+        <h3>Extract Segment</h3>
+        <div class="extract-row">
+            <!-- 2) START SECONDS -->
+            <label>Start (sec):
+                <input type="number" id="startSeconds" min="0" step="0.1" value="0">
+            </label>
+
+            <!-- 3) END SECONDS -->
+            <label>End (sec):
+                <input type="number" id="endSeconds" min="0" step="0.1" value="10">
+            </label>
+
+            <!-- 4) EXTRACT BUTTON -->
+            <button class="control-button" id="extractButton" onclick="extractSegment()">EXTRACT</button>
+        </div>
+        <div id="extractStatus"></div>
+    </div>
+
+</div>
+
+<script>
+
+const videoPlayer = document.getElementById('videoPlayer');
+const fileInput = document.getElementById('fileInput');
+const timeDisplay = document.getElementById('timeDisplay');
+const durationDisplay = document.getElementById('durationDisplay');
+const startInput = document.getElementById('startSeconds');
+const endInput = document.getElementById('endSeconds');
+const extractButton = document.getElementById('extractButton');
+const extractStatus = document.getElementById('extractStatus');
+
+let currentVideoFile = null;
+let isExtracting = false;
+
+/* OPEN VIDEO */
+function openVideo(){
+    fileInput.click();
+}
+
+fileInput.addEventListener('change', function(event){
+
+    const file = event.target.files[0];
+
+    if(file){
+        currentVideoFile = file;
+
+        const videoURL = URL.createObjectURL(file);
+
+        videoPlayer.src = videoURL;
+        videoPlayer.load();
+        extractStatus.textContent = "";
+    }
+});
+
+/* SHOW DURATION + DEFAULT END TIME WHEN VIDEO LOADS */
+videoPlayer.addEventListener('loadedmetadata', function(){
+    durationDisplay.textContent = videoPlayer.duration.toFixed(1);
+    startInput.value = 0;
+    endInput.value = videoPlayer.duration.toFixed(1);
+});
+
+/* LIVE TIME DISPLAY (in seconds) */
+function updateTime(){
+    timeDisplay.textContent = videoPlayer.currentTime.toFixed(1);
+    requestAnimationFrame(updateTime);
+}
+updateTime();
+
+/* PLAY */
+function playVideo(){
+    videoPlayer.play();
+}
+
+/* PAUSE */
+function pauseVideo(){
+    videoPlayer.pause();
+}
+
+/* STOP */
+function stopVideo(){
+    videoPlayer.pause();
+    videoPlayer.currentTime = 0;
+}
+
+/* SAVE AS */
+function saveAs(){
+
+    if(!currentVideoFile){
+        alert("No video loaded.");
+        return;
+    }
+
+    const link = document.createElement('a');
+
+    link.href = URL.createObjectURL(currentVideoFile);
+    link.download = currentVideoFile.name;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+/* EXTRACT SEGMENT */
+async function extractSegment(){
+
+    if(isExtracting) return;
+
+    if(!currentVideoFile){
+        alert("No video loaded.");
+        return;
+    }
+
+    const start = parseFloat(startInput.value);
+    const end = parseFloat(endInput.value);
+    const duration = videoPlayer.duration;
+
+    if(isNaN(start) || isNaN(end)){
+        alert("Please enter both a start and an end time in seconds.");
+        return;
+    }
+    if(start < 0 || end > duration + 0.05){
+        alert("Times must be between 0 and " + duration.toFixed(1) + " seconds.");
+        return;
+    }
+    if(end <= start){
+        alert("End time must be greater than start time.");
+        return;
+    }
+    if(!videoPlayer.captureStream || !window.MediaRecorder){
+        alert("This browser does not support video extraction. Please use Chrome or Edge.");
+        return;
+    }
+
+    /* Prefer MP4; fall back to WebM only if the browser can't record MP4 */
+    const mimeOptions = [
+        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+        'video/mp4;codecs=avc1',
+        'video/mp4',
+        'video/webm;codecs=vp9,opus',
+        'video/webm'
+    ];
+    const mimeType = mimeOptions.find(t => MediaRecorder.isTypeSupported(t));
+    if(!mimeType){
+        alert("No supported recording format found in this browser.");
+        return;
+    }
+    const extension = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+
+    isExtracting = true;
+    extractButton.disabled = true;
+    videoPlayer.pause();
+
+    /* Jump to the start point and wait until it's ready */
+    await new Promise(resolve => {
+        videoPlayer.addEventListener('seeked', resolve, { once: true });
+        videoPlayer.currentTime = start;
+    });
+
+    const stream = videoPlayer.captureStream();
+    const recorder = new MediaRecorder(stream, { mimeType: mimeType });
+    const chunks = [];
+
+    recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+
+    recorder.onstop = function(){
+        videoPlayer.pause();
+
+        const blob = new Blob(chunks, { type: mimeType.split(';')[0] });
+        const baseName = currentVideoFile.name.replace(/\.[^/.]+$/, "");
+        const fileName = baseName + "_" + start + "s-" + end + "s." + extension;
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        extractStatus.textContent = "Saved: " + fileName;
+        extractButton.disabled = false;
+        isExtracting = false;
+    };
+
+    recorder.start();
+    videoPlayer.play();
+
+    /* Watch the playback position and stop at the end time */
+    function checkEnd(){
+        const remaining = Math.max(0, end - videoPlayer.currentTime);
+        extractStatus.textContent = "Extracting... " + remaining.toFixed(1) + " sec remaining";
+
+        if(videoPlayer.currentTime >= end || videoPlayer.ended){
+            if(recorder.state !== "inactive") recorder.stop();
+        } else {
+            requestAnimationFrame(checkEnd);
+        }
+    }
+    requestAnimationFrame(checkEnd);
+}
+
+</script>
+
+</body>
+</html>

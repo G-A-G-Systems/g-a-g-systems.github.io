@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MP4 Video Merger</title>
+<style>
+  :root{--bg:#eef1f5;--panel:#fff;--ink:#1b2430;--mute:#5d6b7c;--line:#d5dce5;--accent:#0f766e;--accent-d:#0b5c56;--bad:#b42318;--good:#0f766e}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:32px 16px}
+  main{max-width:680px;margin:0 auto}
+  h1{font-size:28px;line-height:1.15;margin:0 0 6px;letter-spacing:-.01em}
+  .lede{color:var(--mute);margin:0 0 24px;max-width:60ch}
+  .drop{display:block;border:2px dashed var(--line);border-radius:10px;background:var(--panel);padding:26px;text-align:center;cursor:pointer;color:var(--mute)}
+  .drop:hover,.drop.over,.drop:focus-visible{border-color:var(--accent);color:var(--ink);outline:none}
+  ol{list-style:none;margin:16px 0 0;padding:0}
+  li{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  li .n{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:12px;display:grid;place-items:center}
+  li .t{flex:1;min-width:0}
+  li .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  li .meta{font-size:12px;color:var(--mute)}
+  button,.btn{font:inherit;font-weight:600;border:0;border-radius:8px;padding:10px 18px;background:var(--accent);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+  button:hover:not(:disabled),.btn:hover{background:var(--accent-d)}
+  button:disabled{background:#c3cbd6;color:#8795a6;cursor:not-allowed}
+  button:focus-visible,.btn:focus-visible{outline:3px solid #7cc6bf;outline-offset:2px}
+  button.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+  button.ghost:hover:not(:disabled){background:#f4f6f9}
+  li button{padding:4px 10px;font-size:13px}
+  #strip{display:flex;gap:3px;height:34px;margin-top:14px}
+  #strip div{background:var(--accent);border-radius:4px;min-width:6px;color:#fff;font-size:12px;display:grid;place-items:center;overflow:hidden}
+  #strip div:nth-child(even){background:#2f8f87}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+  progress{width:100%;height:10px;margin-top:16px;accent-color:var(--accent)}
+  #status{min-height:1.5em;margin:10px 0 0;color:var(--mute)}
+  #status.err{color:var(--bad)} #status.ok{color:var(--good);font-weight:600}
+  video#out{width:100%;border-radius:8px;background:#000;margin:14px 0 12px}
+  .note{font-size:13px;color:var(--mute);margin-top:22px;max-width:62ch}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>MP4 Video Merger</h1>
+  <p class="lede">Add your clips, put them in order, and save one MP4. Everything runs inside this browser tab, so nothing is uploaded.</p>
+
+  <label class="drop" id="drop" tabindex="0">Add MP4 files, or drop them here
+    <input type="file" id="file" accept="video/mp4,.mp4" multiple hidden>
+  </label>
+
+  <ol id="list"></ol>
+  <div id="strip" aria-hidden="true"></div>
+
+  <div class="actions">
+    <button id="merge" disabled>Merge clips</button>
+    <button id="cancel" class="ghost" hidden>Cancel</button>
+    <button id="clear" class="ghost" disabled>Clear all</button>
+  </div>
+
+  <progress id="bar" max="1" value="0" hidden></progress>
+  <p id="status" role="status"></p>
+
+  <video id="out" controls hidden></video>
+  <a id="dl" class="btn" hidden>Save merged video</a>
+
+  <p class="note">Merging plays your clips in order and records them, so it takes as long as their combined length. Keep this tab open and in front until it finishes. Clips with different sizes are fitted onto the first clip’s frame with black bars.</p>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const list = $('list'), strip = $('strip'), bar = $('bar'), statusEl = $('status');
+  const mergeBtn = $('merge'), cancelBtn = $('cancel'), clearBtn = $('clear');
+  const out = $('out'), dl = $('dl'), drop = $('drop'), fileInput = $('file');
+
+  let clips = [];          // {file,url,duration,w,h}
+  let busy = false, cancelled = false, abortClip = () => {};
+
+  const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fmtT = s => { s = Math.round(s); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); };
+  const fmtS = b => b < 1048576 ? Math.round(b/1024) + ' KB' : (b/1048576).toFixed(1) + ' MB';
+  const even = n => Math.max(2, Math.floor(n/2)*2);
+  const say = (msg, cls) => { statusEl.textContent = msg; statusEl.className = cls || ''; };
+
+  function probe(file){
+    return new Promise(resolve => {
+      const url = URL.createObjectURL(file);
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.onloadedmetadata = () => resolve({file, url, duration: v.duration, w: v.videoWidth, h: v.videoHeight, ok: isFinite(v.duration) && v.videoWidth > 0});
+      v.onerror = () => resolve({file, url, ok: false});
+      v.src = url;
+    });
+  }
+
+  async function addFiles(files){
+    const skipped = [];
+    for (const f of files){
+      if (!/\.mp4$/i.test(f.name) && f.type !== 'video/mp4') { skipped.push(f.name); continue; }
+      const c = await probe(f);
+      if (!c.ok){ URL.revokeObjectURL(c.url); skipped.push(f.name); continue; }
+      clips.push(c);
+    }
+    render();
+    if (skipped.length) say('Skipped ' + skipped.join(', ') + ': not an MP4 this browser can play.', 'err');
+  }
+
+  function render(){
+    list.innerHTML = clips.map((c, i) => `
+      <li data-i="${i}">
+        <span class="n">${i+1}</span>
+        <div class="t"><div class="name" title="${esc(c.file.name)}">${esc(c.file.name)}</div>
+        <div class="meta">${fmtT(c.duration)} · ${c.w}×${c.h} · ${fmtS(c.file.size)}</div></div>
+        <button class="ghost" data-act="up" ${i===0?'disabled':''} aria-label="Move up">↑</button>
+        <button class="ghost" data-act="down" ${i===clips.length-1?'disabled':''} aria-label="Move down">↓</button>
+        <button class="ghost" data-act="rm" aria-label="Remove">✕</button>
+      </li>`).join('');
+    const total = clips.reduce((a, c) => a + c.duration, 0);
+    strip.innerHTML = clips.map(c => `<div style="flex:${c.duration/total} 1 0" title="${esc(c.file.name)}">${fmtT(c.duration)}</div>`).join('');
+    mergeBtn.disabled = busy || clips.length < 2;
+    clearBtn.disabled = busy || clips.length === 0;
+    if (clips.length === 1) say('Add at least one more clip to merge.');
+  }
+
+  list.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || busy) return;
+    const i = +b.closest('li').dataset.i;
+    if (b.dataset.act === 'rm'){ URL.revokeObjectURL(clips[i].url); clips.splice(i, 1); }
+    else { const j = b.dataset.act === 'up' ? i-1 : i+1; [clips[i], clips[j]] = [clips[j], clips[i]]; }
+    render();
+  });
+
+  fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value = ''; });
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); } });
+  ['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => addFiles([...e.dataTransfer.files]));
+
+  clearBtn.addEventListener('click', () => {
+    clips.forEach(c => URL.revokeObjectURL(c.url)); clips = [];
+    out.hidden = dl.hidden = bar.hidden = true; say(''); render();
+  });
+  cancelBtn.addEventListener('click', () => { cancelled = true; abortClip(); });
+
+  async function merge(){
+    if (typeof MediaRecorder === 'undefined'){ say('This browser can’t record video. Please use an up-to-date Chrome.', 'err'); return; }
+    busy = true; cancelled = false;
+    out.hidden = dl.hidden = true; bar.hidden = false; bar.value = 0;
+    cancelBtn.hidden = false; mergeBtn.disabled = true; clearBtn.disabled = true;
+
+    let ac, stream, rec;
+    try {
+      // Output frame follows the first clip (max 1920 wide).
+      const first = clips[0];
+      const scale = Math.min(1, 1920 / first.w);
+      const W = even(first.w * scale), H = even(first.h * scale);
+
+      const mp4 = ['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a.40.2','video/mp4'];
+      const webm = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+      let mime = mp4.find(t => MediaRecorder.isTypeSupported(t)), ext = 'mp4';
+      if (!mime){ mime = webm.find(t => MediaRecorder.isTypeSupported(t)); ext = 'webm'; }
+      if (!mime) throw new Error('This browser has no supported video recording format.');
+
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+
+      const v = document.createElement('video');
+      v.playsInline = true;
+      v.style.cssText = 'position:fixed;left:-10px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+      document.body.appendChild(v);
+
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      await ac.resume();
+      const dest = ac.createMediaStreamDestination();
+      ac.createMediaElementSource(v).connect(dest);   // audio goes to the recording, not the speakers
+
+      stream = new MediaStream([...cv.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+      rec = new MediaRecorder(stream, {mimeType: mime, videoBitsPerSecond: 8e6, audioBitsPerSecond: 128e3});
+      const chunks = [];
+      rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      const stopped = new Promise(r => rec.onstop = r);
+      rec.start(1000);
+
+      let playing = false, raf = 0;
+      const draw = () => {
+        if (!playing) return;
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+        if (v.videoWidth){
+          const s = Math.min(W / v.videoWidth, H / v.videoHeight), dw = v.videoWidth * s, dh = v.videoHeight * s;
+          ctx.drawImage(v, (W - dw) / 2, (H - dh) / 2, dw, dh);
+        }
+        raf = requestAnimationFrame(draw);
+      };
+
+      const total = clips.reduce((a, c) => a + c.duration, 0);
+      let done = 0;
+      for (let i = 0; i < clips.length && !cancelled; i++){
+        const c = clips[i];
+        v.src = c.url;
+        await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error('Could not play “' + c.file.name + '”.')); });
+        playing = true; draw();
+        await v.play();
+        await new Promise((res, rej) => {
+          const tick = setInterval(() => {
+            bar.value = Math.min(1, (done + v.currentTime) / total);
+            say(document.hidden
+              ? 'Tab is in the background. Bring it to the front or the recording will freeze.'
+              : `Merging clip ${i+1} of ${clips.length}: ${fmtT(done + v.currentTime)} of ${fmtT(total)}`);
+          }, 250);
+          abortClip = () => { clearInterval(tick); v.pause(); res(); };
+          v.onended = () => { clearInterval(tick); res(); };
+          v.onerror = () => { clearInterval(tick); rej(new Error('Playback failed on “' + c.file.name + '”.')); };
+        });
+        playing = false; cancelAnimationFrame(raf);
+        done += c.duration;
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+      rec.stop(); await stopped;
+      stream.getTracks().forEach(t => t.stop());
+      v.remove();
+
+      if (cancelled){ say('Cancelled.'); return; }
+
+      const blob = new Blob(chunks, {type: mime.split(';')[0]});
+      const url = URL.createObjectURL(blob);
+      out.src = url; out.hidden = false;
+      dl.href = url; dl.download = 'merged-video.' + ext;
+      dl.textContent = `Save merged-video.${ext} (${fmtS(blob.size)})`; dl.hidden = false;
+      bar.value = 1;
+      say(ext === 'mp4'
+        ? 'Done. Your merged video is ready.'
+        : 'Done, but this browser can only record WebM, so the file is .webm. Update Chrome to get MP4.', 'ok');
+    } catch (err){
+      console.error(err);
+      say('Merge failed: ' + (err && err.message ? err.message : err), 'err');
+      try { if (rec && rec.state !== 'inactive') rec.stop(); } catch(e){}
+    } finally {
+      try { if (ac) ac.close(); } catch(e){}
+      busy = false; cancelBtn.hidden = true;
+      render();
+    }
+  }
+  mergeBtn.addEventListener('click', merge);
+  render();
+})();
+</script>
+</body>
+</html>
